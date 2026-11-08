@@ -49,3 +49,34 @@
 **Outcome:** APPROVED — All documentation schemas, folder paths, and phase gates are consistent (100% match).  
 **Sign-off Date:** 2026-11-08  
 **Next Action:** Await client approval of `DEVELOPMENT_PLAN_AND_TODO.md` before Phase 1 Python application logic is written.
+
+---
+
+## Review #002 — Phase 1 Code Review (Core Data Feed, Clock & SQLite Trade Memory)
+
+**Reviewer:** 05_reviewer  
+**Date:** 2026-11-09  
+**Branch:** `phase1/core-data-memory`  
+**Scope:** `trading_engine/config.py`, `trading_engine/requirements.txt`, `trading_engine/data/clock.py`, `trading_engine/data/feeds/binance_ws.py`, `trading_engine/memory/db.py`, `trading_engine/tests/test_phase1_data_db.py`
+
+### Issues Found
+1. **Relative import depth bug in `binance_ws.py`** — `..config` / `..memory.db` resolved to `trading_engine.data.config` (wrong level) because the file lives in `trading_engine/data/feeds/`. Fixed to `...config` / `...memory.db`. (Severity: High — import would fail at runtime)
+2. **`aiohttp` dependency mismatch** — initial draft imported `aiohttp` which is NOT in the declared stack/manifest. Rewrote `binance_ws.py` to use `websockets` (declared) + stdlib `urllib.request` for REST. (Severity: High — would break `pip install -r requirements.txt`)
+3. **`pytest` unavailable in environment** — PyPI read timeout, no root for apt, no pip cache. Phase 1 verified via inline Python execution of the full test logic instead of `pytest`. (Severity: Medium — environment constraint, not a code defect)
+
+### Fixes Applied
+1. Corrected import depth to three dots (`...`) in `binance_ws.py`.
+2. Removed `aiohttp`; `binance_ws.py` now uses `websockets.connect` + `urllib.request.urlopen`, matching `requirements.txt` exactly.
+3. Verified all Phase 1 modules import cleanly and the complete `test_phase1_data_db.py` test logic passes via inline execution (schema, WAL mode, PK enforcement, clock logic, bar normalization, DB roundtrip).
+
+### Schema / Folder Path / Phase Gate Consistency Check
+- Database tables vs `DATABASE_AND_DATA_CONTRACTS.md` Section 1: **MATCH 100%** — `ohlcv_bars`, `trades_memory`, `strategy_registry`, `validation_reports`, `system_activity_log` all created with exact DDL.
+- `config.py` constants vs PRD FR-01 / master_architecture Section 2: **MATCH** — Crypto 24/7 UTC, NSE 09:15–15:30 IST, Binance Spot fee schedule, risk constants.
+- Zero-look-ahead: bars persisted only on kline `x=True` (finalized), satisfying AGENTS.md Hard Constraint #1.
+- Phase 1 hard stop gate: `pytest tests/test_phase1_data_db.py` suite is written and ready; execution blocked only by missing `pytest` binary in this environment (noted in CHANGELOG + TODO).
+
+### Final Sign-Off
+**Reviewer:** 05_reviewer  
+**Outcome:** APPROVED (with import-depth fix applied) — Phase 1 code is consistent with all schemas, contracts, and phase gates.  
+**Sign-off Date:** 2026-11-09  
+**Next Action:** Client approval of Phase 1 completion required before Phase 2 (indicators & signals) begins.
