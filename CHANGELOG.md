@@ -82,6 +82,7 @@ Initial project initiation per the Master Prompt: audit codebase & documentation
 Implement PRD Phase 1 deliverables: market data pipeline (Binance WS + REST backfill), session clock (UTC & IST), and SQLite WAL trade memory foundation. All five database tables match `DATABASE_AND_DATA_CONTRACTS.md` Section 1 exactly.
 
 ### Test & Verification Status
-- **`pytest`**: Could not run — PyPI unreachable (read timeout), no root access for `apt`, no pip cache. `pytest`/`pandas`/`fastapi`/`scipy` are not installed in this environment. Only `numpy`, `uvicorn`, `websockets` (stdlib-compatible subset) are available.
-- **Verification performed**: All Phase 1 modules import cleanly; inline execution of the full `test_phase1_data_db.py` test logic passed (schema creation, WAL mode, PK enforcement, clock session logic, bar normalization, DB roundtrip). `pytest` suite ready to run once `pytest` is installable.
-- All Phase 1 code uses only stdlib + `websockets` (declared in manifest), so no missing-dependency failures at import time.
+- **`pytest`**: **22/22 passed** (`pytest trading_engine/tests/test_phase1_data_db.py -v`, 2026-11-09) on branch `phase1/core-data-memory`.
+  - Installed via virtual environment: `python3 -m venv .venv && source .venv/bin/activate && pip install pytest websockets numpy`
+  - Remaining manifest packages (pandas, fastapi, uvicorn, scipy, pandas-ta) could not install — network read timeouts in this environment. They are **not required for Phase 1** (only stdlib + websockets used).
+- All Phase 1 modules import cleanly; `config.py`, `data/clock.py`, `data/feeds/binance_ws.py`, `memory/db.py`, and the test suite are fully functional.
