@@ -10,6 +10,11 @@
 **Agent Roles Involved:** Architect, Backend, QA, Reviewer  
 **Phase:** Project Initiation (Pre-Phase 1)
 
+### Added Files (Post-Commit Hotfix)
+| File | Purpose |
+|------|---------|
+| `.gitignore` | Excludes Python bytecode (__pycache__, *.pyc), venv/.env, SQLite DB (`trading_engine.db`), Parquet caches, pytest cache/coverage, IDE dirs (.vscode/.idea), OS files (.DS_Store), logs/ |
+
 ### Added Files
 | File | Purpose |
 |------|---------|
