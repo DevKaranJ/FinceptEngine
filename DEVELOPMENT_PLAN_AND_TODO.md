@@ -40,43 +40,51 @@
 | 33 | Create `trading_engine/indicators/structure.py` — Family C indicators + tests | Backend/QA | Phase 2 | **VERIFIED** — PDH/PDL/PDC/ORB/Trendlines/FVG/Order Blocks/Liquidity Sweeps pass |
 | 34 | Create `trading_engine/indicators/orderflow.py` — Family D indicators + tests | Backend/QA | Phase 2 | **VERIFIED** — VWAP/RVOL/Volume Profile/CVD/Footprint/Iceberg pass |
 | 35 | Create `trading_engine/signals/{technical,statistical,structure,orderflow}_signals.py` — boolean signal wrappers | Backend/QA | Phase 2 | **VERIFIED** — all signal wrappers return correct True/False |
-| 36 | Create `trading_engine/tests/test_phase2_indicators_signals.py` — full Phase 2 suite | QA | Phase 2 | **VERIFIED** — **58/58 tests passed** (2026-11-09). Donchian breakout test fixed: prev.high > prev.donchian_upper on first call so no false breakout. |
-| 37 | Run `pytest trading_engine/tests/test_phase2_indicators_signals.py` — verify pass, STOP (Phase 2 hard stop gate) | QA + Reviewer | Phase 2 | **VERIFIED: 58/58 passed** |
-
----
+| 36 | Create `trading_engine/tests/test_phase2_indicators_signals.py` — full Phase 2 suite | QA | Phase 2 | **VERIFIED** — **58/58 tests passed** (2026-11-09). HMA added: **61/61 tests passed**. |
+| 37 | Run `pytest trading_engine/tests/test_phase2_indicators_signals.py` — verify pass, STOP (Phase 2 hard stop gate) | QA + Reviewer | Phase 2 | **VERIFIED: 61/61 passed** |
+| 38 | Client approved Phase 2 hard stop gate; merged `phase2/indicators-signals` into `dev` and pushed to origin | Architect | Phase 2 | Merge commit `f2d8c45` on `dev`; PR #2 merged |
+| 39 | Create `strategies/base_strategy.py` — abstract BaseStrategy interface + Contract A signal dict | Backend/QA | Phase 3 | **VERIFIED** — test_base_strategy_build_signal_contract_a, test_base_strategy_target_2_defaults_to_target_1 pass |
+| 40 | Create `strategies/approved/ema_breakout_v1.py` — baseline V1 EMA breakout | Backend/QA | Phase 3 | **VERIFIED** — ATR expansion inline filter, EMA cross trigger, bullish trend + HMA bias, stop/R:R pass |
+| 41 | Create `strategies/approved/vwap_fvg_v1.py` — baseline V1 VWAP + FVG | Backend/QA | Phase 3 | **VERIFIED** — above_vwap, value_area, fvg_retest_bull, ob_test_bull, stop floored at FVG bottom pass |
+| 42 | Create `risk/risk_manager.py` — position sizing, ATR stop, slippage/commission, circuit breakers, R:R | Backend/QA | Phase 3 | **VERIFIED** — sizing, ATR stop long/short, validate_rr, daily loss breaker, consecutive-loss breaker, slippage/commission pass |
+| 43 | Create `memory/trade_logger.py` — open trade, MAE/MFE update, close trade (PnL/R), SQLite persistence | Backend/QA | Phase 3 | **VERIFIED** — open/close roundtrip, MAE/MFE update, net PnL + R-multiple, list by strategy/mode pass |
+| 44 | Create `execution/paper_simulator.py` — event-driven paper lifecycle, tick-by-tick MAE/MFE, slippage/commission deduction | Backend/QA | Phase 3 | **VERIFIED** — full lifecycle open→TP1 exit, MAE/MFE recorded, halt on consecutive losses, summary pass |
+| 45 | Create `tests/test_phase3_execution_memory.py` — full Phase 3 test suite | QA | Phase 3 | **VERIFIED** — **24/24 tests passed** (2026-11-09) |
+| 46 | Run `pytest trading_engine/tests/test_phase3_execution_memory.py` — verify pass, STOP (Phase 3 hard stop gate) | QA + Reviewer | Phase 3 | **VERIFIED: 24/24 passed** — awaiting client approval before Phase 4 |
 
 ## [/] IN PROGRESS (CURRENT SPRINT)
 
 | # | Task | Owner | Notes |
 |---|------|-------|-------|
-| — | None — Phase 2 complete; awaiting client approval of Phase 2 hard stop gate before Phase 3 | — | Per PRD Section 4 / MASTER_ARCHITECTURE Section 4 |
+| — | None — Phase 3 complete; **STOPPED at Phase 3 hard stop gate**, awaiting client approval before Phase 4 | — | Per PRD Section 4 / MASTER_ARCHITECTURE Section 4 |
 
 ---
 
 ## [ ] REMAINING BACKLOG (BY PHASE)
 
-### Pre-Phase (Governance)
+### Phase 4: Backtester, Evaluation Engine & Validation Gatekeeper
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
-| G1 | Client review & approval of Phase 2 completion (hard stop gate before Phase 3) | Client | Initiation | **HARD STOP GATE — awaiting client green light** |
+| 4.1 | Create `validation/backtester.py` — fast vectorized & event-driven backtest engine | Backend | Phase 4 | |
+| 4.2 | Create `evaluation/analyzer.py` — Performance/Risk/Regime breakdown + Weakness JSON report | Backend | Phase 4 | |
+| 4.3 | Create `validation/gatekeeper.py` — OOS split, Walk-Forward, Parameter Heatmap, Approve/Reject | Backend | Phase 4 | Never let AI self-approve |
+| 4.4 | Create `tests/test_phase4_eval_validation.py` — weakness detection + gatekeeper logic | QA | Phase 4 | |
+| 4.5 | Run pytest — verify pass, then STOP (Phase 4 hard stop gate) | QA + Reviewer | Phase 4 | |
 
-### Phase 1: Core Data Feed, Clock & SQLite Trade Memory
+### Phase 5: The 4 AI Research Agents (Self-Improvement Loop)
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
-| — | All Phase 1 tasks 1.1–1.7 COMPLETED & VERIFIED | — | Phase 1 | See COMPLETED section above |
+| 5.1 | Create `agents/research_loop.py` — Research → Hypothesis → Coding V2 → Review pipeline | Backend | Phase 5 | Gemini / OpenRouter |
+| 5.2 | Create `tests/test_phase5_research_agents.py` — end-to-end candidate generation + gating | QA | Phase 5 | |
+| 5.3 | Run pytest — verify pass, then STOP (Phase 5 hard stop gate) | QA + Reviewer | Phase 5 | |
 
-### Phase 2: Multi-Paradigm Lego Indicators & Signals
+### Phase 6: FastAPI Backend & Unified Dark-Mode Terminal UI
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
-| — | All Phase 2 tasks 2.1–2.8 COMPLETED & VERIFIED | — | Phase 2 | See COMPLETED section above (items 30–37) |
-
-### Phase 3–6 backlog unchanged from v0.1.0 baseline
-| # | Task | Owner | Phase | Notes |
-|---|------|-------|-------|-------|
-| 3.1–3.8 | Strategy builder V1, risk, paper simulator | Backend/QA | Phase 3 | Awaiting Phase 2 gate |
-| 4.1–4.5 | Backtester, evaluation, validation gatekeeper | Backend/QA | Phase 4 | Awaiting Phase 2 gate |
-| 5.1–5.3 | 4 AI research agents loop | Backend/QA | Phase 5 | Awaiting Phase 2 gate |
-| 6.1–6.4 | FastAPI backend & dark-mode UI | Frontend/QA | Phase 6 | Awaiting Phase 2 gate |
+| 6.1 | Create `backend/server.py` — FastAPI REST + WebSocket hub | Backend | Phase 6 | `http://127.0.0.1:8765` |
+| 6.2 | Create `execution/alert_dispatcher.py` — 1-Click Manual Order Ticket + audio/Telegram alerts | Backend | Phase 6 | |
+| 6.3 | Create `frontend/index.html`, `frontend/css/styles.css`, `frontend/js/*.js` | Frontend | Phase 6 | TradingView Lightweight Charts |
+| 6.4 | Full end-to-end launch verification in browser, zero console errors | Frontend + QA | Phase 6 | **COMPLETE** |
 
 ---
 

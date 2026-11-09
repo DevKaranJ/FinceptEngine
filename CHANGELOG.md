@@ -128,6 +128,40 @@ Implement PRD Phase 2 deliverables: all four indicator families (technical/stati
 
 ---
 
+## [v0.1.5] — 2026-11-09 — Phase 3: Strategy Builder V1, Risk Manager & Paper Simulator
+
+**Agent Roles Involved:** Backend, QA, Reviewer  
+**Branch:** `dev`  
+
+### Added Files
+| File | Purpose |
+|------|---------|
+| `trading_engine/strategies/base_strategy.py` | Abstract `BaseStrategy` interface + Contract A signal dict (`strategy_id`, `symbol`, `timeframe`, `timestamp_utc`, `direction`, `entry_price`, `stop_loss_raw`, `target_1_raw`, `target_2_raw`, `active_signals`, `regime_snapshot`) |
+| `trading_engine/strategies/approved/ema_breakout_v1.py` | Baseline V1: EMA breakout long — EMA cross trigger + bullish trend alignment + ATR expansion filter (inline rolling SMA) + HMA bias; ATR stop + R:R targets |
+| `trading_engine/strategies/approved/vwap_fvg_v1.py` | Baseline V1: VWAP + FVG mean-reversion long — above VWAP + value area + bullish FVG retest + bullish OB test; ATR stop floored at FVG bottom + R:R targets |
+| `trading_engine/risk/risk_manager.py` | Universal risk governance — position sizing from equity & max risk %, ATR-buffered stop, slippage & commission cost deduction, daily loss circuit breaker, consecutive-loss breaker, max-drawdown kill-switch, R:R validation |
+| `trading_engine/memory/trade_logger.py` | Persist trades with MAE/MFE, regime & signal snapshots — open trade (OPEN), tick-by-tick MAE/MFE update, close trade (CLOSED) with gross/net PnL & R-multiple, SQLite WAL `trades_memory` persistence |
+| `trading_engine/execution/paper_simulator.py` | Event-driven paper simulator — accepts `BaseStrategy.evaluate()` signals, risk-managed sizing (`RiskManager`), tick-by-tick MAE/MFE tracking, stop-loss/take-profit exits, slippage + commission deduction on entry & exit, equity curve, summary report |
+| `trading_engine/tests/test_phase3_execution_memory.py` | Full Phase 3 verification suite — BaseStrategy Contract A, both V1 strategies, RiskManager, TradeLogger, PaperSimulator end-to-end paper trade lifecycle |
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `DEVELOPMENT_PLAN_AND_TODO.md` | Phase 3 moved to COMPLETED & VERIFIED; IN PROGRESS cleared awaiting client gate; Phase 4–6 backlog gated behind Phase 3 |
+
+### Removed Files
+- None
+
+### Why the Change Was Made
+Implement PRD Phase 3 deliverables: versioned strategy builder (two baseline V1 strategies), universal risk manager with circuit breakers, and an event-driven paper simulator with tick-by-tick MAE/MFE tracking and slippage/commission deduction. Zero look-ahead enforced (t <= T) across all strategies/risk/execution code. ATR volatility filter computed inline (rolling SMA of ATR up to current bar) since no `atr_sma_*` column exists in indicators. Paper trade first — strategies go historical backtest → live paper → manual real order ticket.
+
+### Test & Verification Status
+- **`pytest`**: **24/24 passed** (`pytest trading_engine/tests/test_phase3_execution_memory.py -v`, 2026-11-09).
+- No regressions: Phase 1 (`test_phase1_data_db.py`) **22/22 passed**; Phase 2 (`test_phase2_indicators_signals.py`) **61/61 passed**; combined **83/83 passed**.
+- **Phase 3 hard stop gate: PASSED.** STOPPED — awaiting client approval before Phase 4.
+
+---
+
 ## [v0.1.4] — 2026-11-09 — Added HMA Indicator + Signal Wrappers + Tests
 
 **Agent Roles Involved:** Backend, QA  
