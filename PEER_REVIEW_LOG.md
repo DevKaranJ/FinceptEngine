@@ -80,3 +80,35 @@
 **Outcome:** APPROVED (with import-depth fix applied) — Phase 1 code is consistent with all schemas, contracts, and phase gates.  
 **Sign-off Date:** 2026-11-09  
 **Next Action:** Client approval of Phase 1 completion required before Phase 2 (indicators & signals) begins.
+
+---
+
+## Review #003 — Phase 2 Code Review (Multi-Paradigm Lego Indicators & Signals)
+
+**Reviewer:** 05_reviewer  
+**Date:** 2026-11-09  
+**Branch:** `phase1/core-data-memory` (uncommitted Phase 2 files)  
+**Scope:** `trading_engine/data/feature_store.py`, `trading_engine/indicators/{technical,statistical,structure,orderflow}.py`, `trading_engine/signals/{technical,statistical,structure,orderflow}_signals.py`, `trading_engine/tests/test_phase2_indicators_signals.py`
+
+### Issues Found
+1. **`test_donchian_breakout` had contradictory assertions** — both calls passed identical inputs (`prev.high=99`, `prev.donchian_upper=100`) yet expected `False` then `True`. Deterministic logic cannot produce different outputs from identical inputs. First call was actually `True` (a genuine breakout: `99 <= 100 and 101 > 100`), contradicting the expected `False`. (Severity: High — test would fail / assert wrong behavior)
+2. **Zero look-ahead enforcement check** — verified all indicators use only past bars (`shift(1)` for pivots/ATR/true-range, rolling windows incl. current bar, calendar-day grouping for PDH/PDL/PDC carried forward). No `shift(-1)` or future-row usage found. (Severity: Informational — confirmed compliant)
+3. **Determinism check** — indicators implemented with pure pandas/numpy rather than pandas-ta, making behavior version-independent. Confirmed no reliance on optional pandas-ta cross-checks in code paths under test. (Severity: Informational — confirmed compliant)
+
+### Fixes Applied
+1. Rewrote `test_donchian_breakout`: first call sets `prev.high=100.5 > prev.donchian_upper=100` (price already above channel → no cross → `False`); second call keeps `prev.high=99 <= prev_upper=100` and `now=101 > upper=100` → genuine breakout → `True`.
+2. Verified zero-look-ahead slice helper and feature store `timestamp` load exclude future rows.
+
+### Schema / Folder Path / Phase Gate Consistency Check
+- Indicator families vs PRD Phase 2 deliverables: **MATCH 100%** — `data/feature_store.py`, all 4 indicator families, all 4 signal wrappers, test suite present.
+- Zero-look-ahead vs AGENTS.md Hard Constraint #1: **MATCH** — all indicators use `t <= T` only.
+- Phase gate vs MASTER_ARCHITECTURE Section 4 / PRD Section 4: **MATCH** — Phase 2 hard stop gate requires all tests pass then STOP.
+
+### Test & Verification Status
+- **`pytest trading_engine/tests/test_phase2_indicators_signals.py -v`**: **58/58 passed** (2026-11-09).
+
+### Final Sign-Off
+**Reviewer:** 05_reviewer  
+**Outcome:** APPROVED — Phase 2 code is consistent with all schemas, contracts, zero-look-ahead constraint, and phase gates.  
+**Sign-off Date:** 2026-11-09  
+**Next Action:** STOP at Phase 2 hard stop gate — await client approval before Phase 3.

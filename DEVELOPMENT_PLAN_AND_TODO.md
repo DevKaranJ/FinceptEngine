@@ -30,11 +30,26 @@
 
 ---
 
+## [x] COMPLETED & VERIFIED (continued)
+
+| # | Task | Owner | Phase | Notes |
+|---|------|-------|-------|-------|
+| 30 | Create `trading_engine/data/feature_store.py` — SQLite + Parquet feature cache with zero-look-ahead load | Backend | Phase 2 | **VERIFIED** — test_feature_store_write_and_load, test_feature_store_zero_look_ahead_load, test_zero_look_ahead_slice_excludes_future pass |
+| 31 | Create `trading_engine/indicators/technical.py` — Family A indicators + tests | Backend/QA | Phase 2 | **VERIFIED** — EMA/SMA/RSI/ATR/BB/MACD/Supertrend/Donchian/Pivots + zero-look-ahead pass |
+| 32 | Create `trading_engine/indicators/statistical.py` — Family B indicators + tests | Backend/QA | Phase 2 | **VERIFIED** — Z-Score/Hurst/Vol Percentile/LinReg Slope/RS pass |
+| 33 | Create `trading_engine/indicators/structure.py` — Family C indicators + tests | Backend/QA | Phase 2 | **VERIFIED** — PDH/PDL/PDC/ORB/Trendlines/FVG/Order Blocks/Liquidity Sweeps pass |
+| 34 | Create `trading_engine/indicators/orderflow.py` — Family D indicators + tests | Backend/QA | Phase 2 | **VERIFIED** — VWAP/RVOL/Volume Profile/CVD/Footprint/Iceberg pass |
+| 35 | Create `trading_engine/signals/{technical,statistical,structure,orderflow}_signals.py` — boolean signal wrappers | Backend/QA | Phase 2 | **VERIFIED** — all signal wrappers return correct True/False |
+| 36 | Create `trading_engine/tests/test_phase2_indicators_signals.py` — full Phase 2 suite | QA | Phase 2 | **VERIFIED** — **58/58 tests passed** (2026-11-09). Donchian breakout test fixed: prev.high > prev.donchian_upper on first call so no false breakout. |
+| 37 | Run `pytest trading_engine/tests/test_phase2_indicators_signals.py` — verify pass, STOP (Phase 2 hard stop gate) | QA + Reviewer | Phase 2 | **VERIFIED: 58/58 passed** |
+
+---
+
 ## [/] IN PROGRESS (CURRENT SPRINT)
 
 | # | Task | Owner | Notes |
 |---|------|-------|-------|
-| — | None — awaiting client approval of Phase 1 hard stop gate before Phase 2 | — | Per PRD Section 4 / MASTER_ARCHITECTURE Section 4 |
+| — | None — Phase 2 complete; awaiting client approval of Phase 2 hard stop gate before Phase 3 | — | Per PRD Section 4 / MASTER_ARCHITECTURE Section 4 |
 
 ---
 
@@ -43,21 +58,25 @@
 ### Pre-Phase (Governance)
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
-| G1 | Client review & approval of Phase 1 completion (hard stop gate before Phase 2) | Client | Initiation | **HARD STOP GATE — awaiting client green light** |
+| G1 | Client review & approval of Phase 2 completion (hard stop gate before Phase 3) | Client | Initiation | **HARD STOP GATE — awaiting client green light** |
 
 ### Phase 1: Core Data Feed, Clock & SQLite Trade Memory
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
 | — | All Phase 1 tasks 1.1–1.7 COMPLETED & VERIFIED | — | Phase 1 | See COMPLETED section above |
 
-### Phase 2–6 backlog unchanged from v0.1.0 baseline
+### Phase 2: Multi-Paradigm Lego Indicators & Signals
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
-| 2.1–2.8 | Indicators & signals library | Backend/QA | Phase 2 | Awaiting Phase 1 gate |
-| 3.1–3.8 | Strategy builder V1, risk, paper simulator | Backend/QA | Phase 3 | Awaiting Phase 1 gate |
-| 4.1–4.5 | Backtester, evaluation, validation gatekeeper | Backend/QA | Phase 4 | Awaiting Phase 1 gate |
-| 5.1–5.3 | 4 AI research agents loop | Backend/QA | Phase 5 | Awaiting Phase 1 gate |
-| 6.1–6.4 | FastAPI backend & dark-mode UI | Frontend/QA | Phase 6 | Awaiting Phase 1 gate |
+| — | All Phase 2 tasks 2.1–2.8 COMPLETED & VERIFIED | — | Phase 2 | See COMPLETED section above (items 30–37) |
+
+### Phase 3–6 backlog unchanged from v0.1.0 baseline
+| # | Task | Owner | Phase | Notes |
+|---|------|-------|-------|-------|
+| 3.1–3.8 | Strategy builder V1, risk, paper simulator | Backend/QA | Phase 3 | Awaiting Phase 2 gate |
+| 4.1–4.5 | Backtester, evaluation, validation gatekeeper | Backend/QA | Phase 4 | Awaiting Phase 2 gate |
+| 5.1–5.3 | 4 AI research agents loop | Backend/QA | Phase 5 | Awaiting Phase 2 gate |
+| 6.1–6.4 | FastAPI backend & dark-mode UI | Frontend/QA | Phase 6 | Awaiting Phase 2 gate |
 
 ---
 
@@ -128,6 +147,10 @@
 | 2026-11-08 | Root-level `AGENTS.md` missing — created new one embedding the 5 mandatory governance rules | Governance requirement from Master Prompt Step 2 | Architect + Reviewer |
 | 2026-11-08 | `readme.md` exists at root (lowercase) but no `README.md` — no duplicate created to avoid confusion | Project has lowercase readme; kept as-is | Architect |
 | 2026-11-08 | `DEVELOPMENT_PLAN_AND_TODO.md`, `CHANGELOG.md`, `PEER_REVIEW_LOG.md` created as new governance artifacts | Governance requirement from Master Prompt Step 3 | Architect + QA + Reviewer |
+| 2026-11-09 | **Phase 2 complete & verified**: `data/feature_store.py`, `indicators/{technical,statistical,structure,orderflow}.py`, `signals/{technical,statistical,structure,orderflow}_signals.py`, `tests/test_phase2_indicators_signals.py` | PRD Phase 2 deliverables complete; **58/58 tests passed**; hard stop gate reached — awaiting client approval before Phase 3 | Backend + QA + Reviewer |
+| 2026-11-09 | Installed `pandas-ta` in `.venv` (already listed in `trading_engine/requirements.txt`) | 130+ installable indicators available as `import pandas_ta as pta`; kept alongside pure-pandas implementations for cross-checking | Backend + QA |
+| 2026-11-09 | Created `docs/contributing_indicators.md` | Step-by-step guide: how to add new indicators per family, keep files separate, enforce zero-look-ahead, write signal wrappers, and test | Architect + QA |
+| 2026-11-09 | Added HMA indicator + signal wrappers + tests to `technical.py`, `technical_signals.py`, `test_phase2_indicators_signals.py` | Demonstrated contribution guide in practice; **61/61 tests passed** | Backend + QA |
 
 ---
 
