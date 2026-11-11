@@ -52,6 +52,11 @@ Maintain a production `CHANGELOG.md` in the project root. Every time files are c
 ### Rule 5 — Mandatory Internal Peer Review Before Client Sign-Off
 No coder agent may declare its own work finished. Every completed task must pass through **04_qa_tester** (automated testing) and **05_reviewer** (code quality, look-ahead bias check, risk compliance, documentation sync check). Record the review outcome in `PEER_REVIEW_LOG.md` (Issues Found → Fixes Applied → Final Sign-Off) before presenting the result to the Client.
 
+### Rule 6 — Branch-per-phase & Approval-before-commit/push
+- Every new phase gets its own dedicated branch — never commit directly into `dev` or `main`.
+- Every feature or modification gets its own commits within the phase branch.
+- Nothing is committed or pushed without explicit client approval. Your approval authorizes committing into the phase branch only; you review and manually merge each phase branch into `dev`. No auto-push to `dev`/`origin`.
+
 ## 4. Testing & Verification
 
 - Test framework: **pytest**. Run `pytest` from the repo root (once tests/ exists).
