@@ -199,6 +199,43 @@ Implement PRD Phase 4 deliverables: historical event-driven backtester mirroring
 
 ---
 
+## [v0.1.7] — 2026-11-11 — Phase 5: The 4 AI Research Agents (Self-Improvement Loop)
+
+**Agent Roles Involved:** Backend, QA, Reviewer  
+**Phase:** Phase 5 (branch: `phase5/ai-research-agents`, uncommitted, NOT pushed)  
+**Branch:** `phase5/ai-research-agents` (from `dev`)
+
+### Added Files
+| File | Purpose |
+|------|---------|
+| `trading_engine/agents/research_loop.py` | 4-role AI self-improvement research loop (offline / deterministic — no LLM SDK): **ResearchAgent** consumes V1's Weakness Report (evaluation/analyzer.py) → **HypothesisAgent** converts weaknesses into a parameterized trade idea → **CodingAgent** renders a zero-look-ahead V2 candidate strategy file into `strategies/candidates/` (Contract A, BaseStrategy, fixed feature columns ema_12/ema_26/atr_14/atr_14_sma/hma_20/rsi_14/donchian_upper_20) → **ReviewAgent** static look-ahead-bias audit + independent **ValidationGatekeeper** (OOS, Walk-Forward K=5, Parameter Heatmap 5×5, Cost Stress 1.5×). Promotes V2 only when all 4 gate tests PASS; V1 stays active on any failure; never lets AI self-approve. |
+| `trading_engine/tests/test_phase5_research_agents.py` | Full Phase 5 verification suite — ResearchAgent weakness consumption, HypothesisAgent targeting + defaults, CodingAgent importable candidate + zero-look-ahead audit + Contract A evaluate(), ReviewAgent audit reject, full loop structure + v1_stays_active consistency, no-LLM-SDK import check. |
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `DEVELOPMENT_PLAN_AND_TODO.md` | Phase 5 tasks 52–54 moved to COMPLETED & VERIFIED (11/11 passed); IN PROGRESS cleared, STOPPED at Phase 5 hard stop gate awaiting client approval before Phase 6 |
+| `PEER_REVIEW_LOG.md` | Review #005 added (Phase 5 code review) |
+| `CHANGELOG.md` | This entry |
+
+### Removed Files
+- None
+
+### Why the Change Was Made
+Implement PRD Phase 5 deliverables: the 4-role AI research loop that reads V1's Weakness Report, generates a V2 candidate under `strategies/candidates/` (never touching `strategies/approved/`), audits for zero look-ahead (t <= T), runs through the independent ValidationGatekeeper, and either promotes V2 (candidate registry only) or rejects it keeping V1 active. Zero look-ahead protection enforced; no external LLM SDK imports (PyPI unreachable — all reasoning is deterministic template logic keyed off weakness flags). Paper trade first principle preserved — V2 is a candidate only, never auto-deployed.
+
+### Test & Verification Status
+- **`pytest`**: **11/11 passed** (`pytest trading_engine/tests/test_phase5_research_agents.py -q`, 2026-11-11).
+  - ResearchAgent: 2/2 — consumes weakness report, detects NEGATIVE_EXPECTANCY + losing regimes
+  - HypothesisAgent: 2/2 — targets flagged weaknesses, valid defaults when no flags
+  - CodingAgent: 3/3 — renders importable BaseStrategy subclass, zero-look-ahead audit passes, Contract A evaluate() returns all required keys
+  - ReviewAgent: 1/1 — rejects future-leak source in static audit
+  - Full loop: 3/3 — loop structure, v1_stays_active consistency, no LLM SDK imports in source
+- All modules import cleanly; deterministic (same inputs → same outputs); no look-ahead leakage in generated V2.
+- **Phase 5 hard stop gate: PASSED.** STOPPED — awaiting explicit client approval before committing/pushing/merging into `dev` (Rule 6). Do NOT auto-merge.
+
+---
+
 ## [v0.1.4] — 2026-11-09 — Added HMA Indicator + Signal Wrappers + Tests
 
 **Agent Roles Involved:** Backend, QA  
