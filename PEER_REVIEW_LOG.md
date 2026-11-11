@@ -112,3 +112,49 @@
 **Outcome:** APPROVED — Phase 2 code is consistent with all schemas, contracts, zero-look-ahead constraint, and phase gates.  
 **Sign-off Date:** 2026-11-09  
 **Next Action:** STOP at Phase 2 hard stop gate — await client approval before Phase 3.
+
+---
+
+## Review #004 — Phase 4 Code Review (Backtester, Evaluation Engine & Validation Gatekeeper)
+
+**Reviewer:** 05_reviewer  
+**Date:** 2026-11-11  
+**Branch:** `phase4/backtest-eval-validation`  
+**Scope:** `trading_engine/validation/backtester.py`, `trading_engine/evaluation/analyzer.py`, `trading_engine/validation/gatekeeper.py`, `trading_engine/tests/test_phase4_eval_validation.py`
+
+### Issues Found
+1. **`test_compute_performance_basic` profit_factor rounding too strict** — asserted `isclose(pf, 190/130, rel_tol=1e-6)` but `analyzer.compute_performance` rounds PF to 4 decimals. Fixed test to compare against `round(190/130, 4)`. (Severity: Medium — test would fail despite correct implementation)
+2. **`test_backtester_zero_look_ahead` regenerated data with different `n`** — `pd.Series` cumsum base differs when `n` changes, so identical trigger index produced different results. Fixed by truncating the same DataFrame (`df_full.iloc[:200].copy()`) so both runs share identical bars up to T. (Severity: High — test was validating the wrong thing / not actually testing zero look-ahead)
+3. **Double-counting closed trades** — `run()` appended `result.__dict__` after `_finalize_close()` already appended to `closed_trades`, producing duplicate trade records (trades persisted count ≠ result count). Removed the duplicate appends in both the per-bar exit path and the flat-close path. (Severity: High — would corrupt trade log counts and SQLite persistence)
+4. **`_finalize_close` trade dict missing `entry_price`** — tests assert `entry_price` on closed trade dicts; added `entry_price=pos.entry_price` to the closed-trade record. (Severity: Medium — test assertion would KeyError)
+5. **Gatekeeper test fixtures had all trigger indices in-sample (<350)** → OOS had 0 trades → OOS/WFA/heatmap/cost-stress all failed → REJECTED instead of APPROVED. Moved `trigger_indices` into `default_params` so heatmap variants preserve them, and spread triggers across in-sample `[0,350)` (100/200/300) for the heatmap plus one per walk-forward window in OOS `[350,500)` (380/410/440/470/495). (Severity: High — gatekeeper could never APPROVE a valid candidate)
+6. **_LosingStrategy used LONG with tiny target in uptrend** → would win, not lose. Switched to SHORT in rising market so stop loss is hit → guaranteed losing baseline. (Severity: Medium — baseline would not lose, invalidating the reject test)
+
+### Fixes Applied
+1. Test compares `round(190/130, 4)` via `isclose` with `rel_tol=1e-6`.
+2. Truncated same DataFrame for look-ahead test; identical bars up to T.
+3. Removed duplicate `closed_trades.append(result.__dict__)` calls; `_finalize_close` is the single writer.
+4. Added `entry_price` to closed-trade dict in `_finalize_close`.
+5. Triggers in `default_params["trigger_indices"]`; split across IS/OOS; variants preserve triggers via `cls(params=params)`.
+6. `_LosingStrategy` now issues SHORT entries with stop above entry in a rising market.
+
+### Schema / Folder Path / Phase Gate Consistency Check
+- Backtester `BacktestResult` / trade dicts vs `DATABASE_AND_DATA_CONTRACTS.md` Section 2 (Contract A signal dict + trades_memory columns): **MATCH** — trade_id, strategy_id, symbol, direction, entry/exit price/time, net_pnl, r_multiple, mae/mfe, regime_snapshot, active_signals, exit_reason all present.
+- `validation_reports` table exists in `memory/db.py` (created Phase 1) — gatekeeper persists `final_status`, `rejection_reason`, per-test booleans + metrics JSON. **MATCH**.
+- Zero-look-ahead vs AGENTS.md Hard Constraint #1: **MATCH** — exits use current-bar OHLC only; equity curve per bar; OOS split is chronological (first 70% IS, last 30% OS); WFA trains only on historical bars before each test window.
+- Gate thresholds vs `docs/strategy_and_validation_spec.md` Section 3: **MATCH** — OOS PF≥1.25 & ER>baseline & MaxDD≤baseline; WFA ≥4/5 windows ER>0; Heatmap ≥20/25 cells PF>1.10; Cost stress 1.5× slippage PF≥1.15 & ER≥+0.12R. All 4 must PASS for APPROVED; any failure → REJECTED.
+- Phase gate vs MASTER_ARCHITECTURE Section 4 / PRD Section 4: **MATCH** — Phase 4 hard stop gate requires `pytest trading_engine/tests/test_phase4_eval_validation.py` pass then STOP.
+
+### Test & Verification Status
+- **`pytest trading_engine/tests/test_phase4_eval_validation.py -q`**: **14/14 passed** (2026-11-11).
+  - Backtester: 4/4
+  - Analyzer: 7/7
+  - Gatekeeper: 3/3
+- No regressions: Phases 1–3 suites still pass (22/22, 61/61, 24/24).
+- All Phase 4 modules import cleanly; deterministic (same inputs → same outputs); no look-ahead leakage.
+
+### Final Sign-Off
+**Reviewer:** 05_reviewer  
+**Outcome:** APPROVED — Phase 4 code is consistent with all schemas, contracts, zero-look-ahead constraint, validation thresholds, and phase gates.  
+**Sign-off Date:** 2026-11-11  
+**Next Action:** STOP at Phase 4 hard stop gate — await explicit client approval before committing/pushing/merging into `dev` (Rule 6). Do NOT auto-merge.
