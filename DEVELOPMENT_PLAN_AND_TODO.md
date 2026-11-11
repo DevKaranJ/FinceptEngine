@@ -55,13 +55,21 @@
 | 48 | Create `evaluation/analyzer.py` — Performance/Risk/Regime breakdown + Weakness Detection JSON | Backend/QA | Phase 4 | **VERIFIED** — imports OK; test_compute_performance_*, test_detect_weaknesses_* (7/7) pass |
 | 49 | Create `validation/gatekeeper.py` — OOS 70/30, Walk-Forward K=5, Heatmap 5x5, Cost Stress 1.5x; APPROVED/REJECTED | Backend/QA | Phase 4 | **VERIFIED** — imports OK; gatekeeper tests pass |
 | 50 | Create `tests/test_phase4_eval_validation.py` — full Phase 4 suite (backtester + analyzer + gatekeeper) | QA | Phase 4 | **VERIFIED** — **14/14 tests passed** (`pytest trading_engine/tests/test_phase4_eval_validation.py -q`, 2026-11-11) |
-| 51 | Run `pytest trading_engine/tests/test_phase4_eval_validation.py` — verify pass, STOP (Phase 4 hard stop gate) | QA + Reviewer | Phase 4 | **VERIFIED: 14/14 passed** — STOPPED awaiting client approval before Phase 5 |
+| 51 | Run `pytest trading_engine/tests/test_phase4_eval_validation.py` — verify pass, STOP (Phase 4 hard stop gate) | QA + Reviewer | Phase 4 | **VERIFIED: 14/14 passed** — client approved; merged into `dev` via PR #3 |
+
+## [x] COMPLETED & VERIFIED (continued)
+
+| # | Task | Owner | Phase | Notes |
+|---|------|-------|-------|-------|
+| 52 | Create `agents/research_loop.py` — Research → Hypothesis → Coding V2 → Review pipeline (4-role AI self-improvement loop) | Backend | Phase 5 | **VERIFIED** — offline deterministic template-based, no LLM SDK, zero look-ahead, V1 stays active on failure |
+| 53 | Create `tests/test_phase5_research_agents.py` — full Phase 5 suite (all 4 roles + Contract A + zero-look-ahead audit + no-LLM-SDK + full loop) | QA | Phase 5 | **VERIFIED** — **11/11 tests passed** (`pytest trading_engine/tests/test_phase5_research_agents.py -q`, 2026-11-11) |
+| 54 | Run `pytest trading_engine/tests/test_phase5_research_agents.py` — verify pass, STOP (Phase 5 hard stop gate) | QA + Reviewer | Phase 5 | **VERIFIED: 11/11 passed** — STOPPED at Phase 5 hard stop gate awaiting client approval before Phase 6 |
 
 ## [/] IN PROGRESS (CURRENT SPRINT)
 
 | # | Task | Owner | Notes |
 |---|------|-------|-------|
-| — | None — Phase 4 complete & verified (14/14). **STOPPED at Phase 4 hard stop gate**, awaiting client approval before Phase 5 | — | Per PRD Section 4 / MASTER_ARCHITECTURE Section 4 |
+| — | None — Phase 5 complete & verified (11/11). **STOPPED at Phase 5 hard stop gate**, awaiting client approval before Phase 6 | — | Per PRD Section 4 / MASTER_ARCHITECTURE Section 4 |
 
 ---
 
@@ -79,9 +87,7 @@
 ### Phase 5: The 4 AI Research Agents (Self-Improvement Loop)
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
-| 5.1 | Create `agents/research_loop.py` — Research → Hypothesis → Coding V2 → Review pipeline | Backend | Phase 5 | Gemini / OpenRouter |
-| 5.2 | Create `tests/test_phase5_research_agents.py` — end-to-end candidate generation + gating | QA | Phase 5 | |
-| 5.3 | Run pytest — verify pass, then STOP (Phase 5 hard stop gate) | QA + Reviewer | Phase 5 | |
+| — | All Phase 5 tasks complete & verified (11/11) — moved to COMPLETED & VERIFIED above | — | Phase 5 | STOPPED at Phase 5 hard stop gate awaiting client approval |
 
 ### Phase 6: FastAPI Backend & Unified Dark-Mode Terminal UI
 | # | Task | Owner | Phase | Notes |
@@ -139,9 +145,7 @@
 ### Phase 5: The 4 AI Research Agents (Self-Improvement Loop)
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
-| 5.1 | Create `agents/research_loop.py` — Research → Hypothesis → Coding V2 → Review pipeline | Backend | Phase 5 | Gemini / OpenRouter |
-| 5.2 | Create `tests/test_phase5_research_agents.py` — end-to-end candidate generation + gating | QA | Phase 5 | |
-| 5.3 | Run pytest — verify pass, then STOP (Phase 5 hard stop gate) | QA + Reviewer | Phase 5 | |
+| — | All Phase 5 tasks complete & verified (11/11) — moved to COMPLETED & VERIFIED above | — | Phase 5 | STOPPED at Phase 5 hard stop gate awaiting client approval |
 
 ### Phase 6: FastAPI Backend & Unified Dark-Mode Terminal UI
 | # | Task | Owner | Phase | Notes |
