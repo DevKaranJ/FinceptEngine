@@ -69,7 +69,7 @@
 
 | # | Task | Owner | Notes |
 |---|------|-------|-------|
-| — | Phase 6 complete & verified (9/9 tests). **STOPPED at Phase 6 hard stop gate**, awaiting client approval before committing to `phase6/fastapi-backend-ui` branch or merging to `dev` | — | All 9 endpoints + frontend smoke-tested; pytest suite 9/9 passed |
+| — | Phase 6 complete, committed (f01f2ca) & pushed to `origin/phase6/fastapi-backend-ui`. **NOT merged to `dev`** — awaiting explicit client approval before merge (Rule 6). | — | 9 endpoints + WS smoke-tested; pytest suite 9/9 passed |
 
 ---
 
