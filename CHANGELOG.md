@@ -162,6 +162,43 @@ Implement PRD Phase 3 deliverables: versioned strategy builder (two baseline V1 
 
 ---
 
+## [v0.1.6] — 2026-11-11 — Phase 4: Backtester, Evaluation Engine & Validation Gatekeeper
+
+**Agent Roles Involved:** Backend, QA  
+**Phase:** Phase 4 (branch: `phase4/backtest-eval-validation`, uncommitted)  
+**Branch:** `phase4/backtest-eval-validation` (from `dev`)  
+
+### Added Files
+| File | Purpose |
+|------|---------|
+| `trading_engine/validation/backtester.py` | Event-driven historical backtester — replays bars bar-by-bar through `BaseStrategy.evaluate()` (Contract A), simulates SL/TP/TIME exits on current-bar OHLC only (zero look-ahead), deducts slippage+commission per leg, persists trades to `trades_memory` via `TradeLogger`, returns `BacktestResult` (trades + equity curve + summary metrics). Opens fresh `TradeLogger`/`RiskManager` per `run()` for determinism/re-entrancy. |
+| `trading_engine/evaluation/analyzer.py` | Evaluation engine — `compute_performance` (win rate, PF, expectancy R, gross/net PnL), `compute_risk` (max drawdown, VaR/CVaR 95%), `compute_regime_breakdown`, `detect_weaknesses` (structured Weakness Detection JSON: NEGATIVE_EXPECTANCY, LOW_PROFIT_FACTOR, LOW_WIN_RATE, LOSING_REGIMES, STOPS_TOO_TIGHT, HIGH_COST_DRAG, HIGH_DRAWDOWN), `weakness_report_json`. All deterministic (t <= T). |
+| `trading_engine/validation/gatekeeper.py` | Independent Validation Gatekeeper — 4 tests required for APPROVED (any failure → REJECTED, V1 stays active): (1) OOS 70/30 split PF≥1.25 & ER>baseline & MaxDD≤baseline; (2) Walk-Forward K=5 ≥80% windows ER>0; (3) Parameter Sensitivity Heatmap 5×5 ≥80% cells PF>1.10; (4) Cost Stress 1.5× slippage PF≥1.15 & ER≥+0.12R. Report persisted to SQLite `validation_reports`. Never lets AI self-approve. |
+| `trading_engine/tests/test_phase4_eval_validation.py` | Full Phase 4 verification suite — backtester (runs/records/persists/zero-look-ahead/flat-close/summary), analyzer (performance/risk/regime/weakness/JSON), gatekeeper (approves profitable, rejects losing, cost-stress rejects/no self-approval). |
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `DEVELOPMENT_PLAN_AND_TODO.md` | Phase 4 tasks 47–51 moved to COMPLETED & VERIFIED (14/14 passed); IN PROGRESS cleared, STOPPED at Phase 4 hard stop gate awaiting client approval |
+| `PEER_REVIEW_LOG.md` | Review #004 added (Phase 4 code review) |
+| `CHANGELOG.md` | This entry |
+
+### Removed Files
+- None
+
+### Why the Change Was Made
+Implement PRD Phase 4 deliverables: historical event-driven backtester mirroring `PaperSimulator` semantics (re-entrant, returns `BacktestResult`), evaluation engine with weakness detection, and the independent 4-test validation gatekeeper that must pass before any V2 candidate promotion. Zero look-ahead enforced (t <= T) across backtester exits, MAE/MFE, analyzer metrics, and gatekeeper splits. Paper trade first principle: historical backtest → live paper → manual real order ticket.
+
+### Test & Verification Status
+- **`pytest`**: **14/14 passed** (`pytest trading_engine/tests/test_phase4_eval_validation.py -q`, 2026-11-11).
+  - Backtester: 4/4 — runs & records trades, zero look-ahead, flat close at end, summary structure
+  - Analyzer: 7/7 — compute_performance (basic + empty), compute_risk/drawdown, regime breakdown, detect_weaknesses (negative expectancy + losing regime), weakness_report_json valid JSON
+  - Gatekeeper: 3/3 — approves profitable candidate (APPROVED, all 4 tests pass), rejects losing candidate (REJECTED), cost-stress rejects (REJECTED, COST_STRESS_FAILED — no self-approval)
+- All Phase 4 modules import cleanly; no look-ahead leakage detected.
+- **Phase 4 hard stop gate: PASSED.** STOPPED — awaiting client approval before Phase 5.
+
+---
+
 ## [v0.1.4] — 2026-11-09 — Added HMA Indicator + Signal Wrappers + Tests
 
 **Agent Roles Involved:** Backend, QA  
