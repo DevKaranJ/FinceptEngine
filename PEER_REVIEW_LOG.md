@@ -213,3 +213,50 @@ All 7 issues fixed before final sign-off.
 **Outcome:** APPROVED — Phase 5 code is consistent with all schemas, contracts, zero-look-ahead constraint, validation thresholds, offline/no-LLM-SDK rule, and phase gates.  
 **Sign-off Date:** 2026-11-11  
 **Next Action:** STOP at Phase 5 hard stop gate — await explicit client approval before committing/pushing/merging into `dev` (Rule 6). Do NOT auto-merge.
+
+---
+
+## Review #006 — Phase 6 Code Review (FastAPI Backend & Unified Dark-Mode Terminal UI)
+
+**Reviewer:** 05_reviewer  
+**Date:** 2026-11-11  
+**Branch:** `phase6/fastapi-backend-ui` (from `dev`, uncommitted, NOT pushed, NOT merged to `dev`)  
+**Scope:** `trading_engine/backend/server.py`, `trading_engine/frontend/index.html`, `trading_engine/frontend/css/styles.css`, `trading_engine/frontend/js/{main,chart_engine,footprint_ui,lab_evaluation_ui,system_monitor_ui}.js`, `trading_engine/frontend/vendor/lightweightcharts.standalone.production.js`, `trading_engine/tests/test_phase6_backend_ui.py`  
+**Cross-checked against:** `docs/database_and_data_contracts.md` Section 3 (endpoint table + schemas), `docs/master_architecture.md` Phase 6 spec, `trading_engine/config.py`, `trading_engine/memory/db.py`, `trading_engine/evaluation/analyzer.py`, `trading_engine/validation/gatekeeper.py`, `trading_engine/agents/research_loop.py`
+
+### Issues Found
+1. **Empty-snapshot missing `count` key** — `GET /api/market/snapshot` returned `bars: []` without a `count` field when no bars exist; test asserted `count == 0`. (Severity: Low — response-shape inconsistency, fixed)
+2. **`ROOT` path miscalculated** — test used 2 levels up from `tests/` (`<repo>/trading_engine/`) instead of repo root; frontend file existence checks failed with wrong absolute paths. (Severity: Medium — test would fail despite files existing)
+3. **`@pytest.mark.asyncio` unusable offline** — `pytest-asyncio` not installed and PyPI unreachable; async-marked tests fail with `PytestUnknownMarkWarning`. (Severity: High — environment constraint; resolved by converting to sync `asyncio.run()`)
+4. **Vendored chart lib member names** — minified Lightweight Charts v5.3.0 exports `CandlestickSeries` (not `addCandlestickSeries`) and lacks `addLineSeries` as a top-level member name; test assertion was wrong. (Severity: Low — test assertion fixed, lib is correct)
+5. **Duplicate activity/ticket rendering** — `main.js` and `system_monitor_ui.js` both rendered the activity timeline and manual ticket. Consolidated into `systemMonitor.render()` delegated from `main.js`. (Severity: Low — code-quality dedup)
+
+### Fixes Applied
+1. Added `"count": 0` to the empty-bars branch of `market_snapshot()` in `server.py`.
+2. Corrected `ROOT` to 3 levels up from `tests/` in `test_phase6_backend_ui.py`.
+3. Converted all `@pytest.mark.asyncio` / `async def` tests to sync wrappers using `asyncio.run()`.
+4. Fixed test assertions to match minified chart lib exports (`createChart`, `CandlestickSeries`).
+5. Delegated activity timeline + monitor cards + manual ticket rendering to `window.systemMonitor.render()` in `main.js`.
+
+### Schema / Folder Path / Phase Gate Consistency Check
+- 9 REST routes + WS `/ws/live` match `docs/database_and_data_contracts.md` Section 3 endpoint table exactly: `/`, `/api/system/status`, `/api/market/snapshot`, `/api/trades/memory`, `POST /api/trades/manual`, `GET /api/evaluation/{strategy_id}`, `POST /api/research/trigger`, `GET /api/validation/reports`, `WS /ws/live`. **MATCH 100%**.
+- Zero look-ahead vs AGENTS.md Hard Constraint #1: **MATCH** — snapshot reads only stored OHLCV bars (`ORDER BY ... DESC LIMIT`) via SQLite WAL reads; no future data ever included; `ZERO_LOOK_AHEAD = True` asserted in test.
+- Paper trade first vs AGENTS.md Hard Constraint #3: **MATCH** — `POST /api/trades/manual` persists `execution_mode="MANUAL_LIVE"`; human executes broker orders manually; no auto-deployment of V2 candidates.
+- Never lets AI self-approve vs AGENTS.md Hard Constraint #2: **MATCH** — `POST /api/research/trigger` runs `ResearchLoop` → independent `ValidationGatekeeper`; `V1 stays active` unless all 4 gate tests pass; approval status surfaced in UI.
+- JSON sanitization: `Infinity`/`-Infinity`/`NaN` → `null` via `_sanitize_json()` so all responses serialize cleanly (validation reports carry `Infinity` PF). **MATCH**.
+- Phase gate vs MASTER_ARCHITECTURE Section 4 / PRD Section 4: **MATCH** — Phase 6 hard stop gate requires `pytest trading_engine/tests/test_phase6_backend_ui.py` pass then STOP awaiting client approval.
+
+### Test & Verification Status
+- **`pytest trading_engine/tests/test_phase6_backend_ui.py -v`**: **9/9 passed** (2026-11-11).
+  - Route registration (9 endpoints + WS), WS route type, JSON Infinity/NaN sanitization, empty-snapshot graceful, trades pagination, validation reports shape, frontend file existence, chart lib API, ZERO_LOOK_AHEAD constant.
+- All endpoints smoke-tested against live server on `http://127.0.0.1:8765`: `/`, `/api/system/status`, `/api/market/snapshot`, `/api/trades/memory`, `POST /api/trades/manual`, `/api/evaluation/{strategy_id}`, `/api/validation/reports` — all return correct shapes.
+- Vendor chart lib confirms `createChart` + `CandlestickSeries` + version `5.3.0` (vendored from npm tarball; unpkg CDN 404s offline-safe).
+- No regressions: Phases 1–5 suites still pass (22/22, 61/61, 24/24, 14/14, 11/11).
+
+### Final Sign-Off
+**Reviewer:** 05_reviewer  
+**Outcome:** APPROVED — Phase 6 code is consistent with all schemas, contracts, zero-look-ahead constraint, paper-trade-first rule, no-self-approval rule, JSON sanitization, and phase gates.  
+**Sign-off Date:** 2026-11-11  
+**Next Action:** STOP at Phase 6 hard stop gate — await explicit client approval before committing/pushing/merging into `dev` (Rule 6). Do NOT auto-merge or commit to `dev`. Commit only into `phase6/fastapi-backend-ui` after client approval.
+
+---

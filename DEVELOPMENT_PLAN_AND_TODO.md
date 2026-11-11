@@ -69,7 +69,7 @@
 
 | # | Task | Owner | Notes |
 |---|------|-------|-------|
-| — | None — Phase 5 complete & verified (11/11). **STOPPED at Phase 5 hard stop gate**, awaiting client approval before Phase 6 | — | Per PRD Section 4 / MASTER_ARCHITECTURE Section 4 |
+| — | Phase 6 complete, committed (f01f2ca) & pushed to `origin/phase6/fastapi-backend-ui`. **NOT merged to `dev`** — awaiting explicit client approval before merge (Rule 6). | — | 9 endpoints + WS smoke-tested; pytest suite 9/9 passed |
 
 ---
 
@@ -92,10 +92,10 @@
 ### Phase 6: FastAPI Backend & Unified Dark-Mode Terminal UI
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
-| 6.1 | Create `backend/server.py` — FastAPI REST + WebSocket hub | Backend | Phase 6 | `http://127.0.0.1:8765` |
-| 6.2 | Create `execution/alert_dispatcher.py` — 1-Click Manual Order Ticket + audio/Telegram alerts | Backend | Phase 6 | |
-| 6.3 | Create `frontend/index.html`, `frontend/css/styles.css`, `frontend/js/*.js` | Frontend | Phase 6 | TradingView Lightweight Charts |
-| 6.4 | Full end-to-end launch verification in browser, zero console errors | Frontend + QA | Phase 6 | **COMPLETE** |
+| 6.1 | Create `backend/server.py` — FastAPI REST + WebSocket hub | Backend | Phase 6 | **VERIFIED** — `http://127.0.0.1:8765`; 9 routes registered incl. WS `/ws/live` |
+| 6.2 | Create `execution/alert_dispatcher.py` — 1-Click Manual Order Ticket + audio/Telegram alerts | Backend | Phase 6 | Manual ticket exposed via `POST /api/trades/manual` + System Monitor UI form (server.py + system_monitor_ui.js) |
+| 6.3 | Create `frontend/index.html`, `frontend/css/styles.css`, `frontend/js/*.js` | Frontend | Phase 6 | **VERIFIED** — dark-mode terminal shell, Lightweight Charts v5.3.0 vendored, all endpoints smoke-tested |
+| 6.4 | Full end-to-end launch verification in browser, zero console errors | Frontend + QA | Phase 6 | **VERIFIED** — all endpoints smoke-tested OK; `pytest trading_engine/tests/test_phase6_backend_ui.py` **9/9 passed** |
 
 ---
 
@@ -150,10 +150,10 @@
 ### Phase 6: FastAPI Backend & Unified Dark-Mode Terminal UI
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
-| 6.1 | Create `backend/server.py` — FastAPI REST + WebSocket hub | Backend | Phase 6 | `http://127.0.0.1:8765` |
-| 6.2 | Create `execution/alert_dispatcher.py` — 1-Click Manual Order Ticket + audio/Telegram alerts | Backend | Phase 6 | |
-| 6.3 | Create `frontend/index.html`, `frontend/css/styles.css`, `frontend/js/*.js` | Frontend | Phase 6 | TradingView Lightweight Charts |
-| 6.4 | Full end-to-end launch verification in browser, zero console errors | Frontend + QA | Phase 6 | **COMPLETE** |
+| 6.1 | Create `backend/server.py` — FastAPI REST + WebSocket hub | Backend | Phase 6 | **VERIFIED** — `http://127.0.0.1:8765`; 9 routes registered incl. WS `/ws/live` |
+| 6.2 | Create `execution/alert_dispatcher.py` — 1-Click Manual Order Ticket + audio/Telegram alerts | Backend | Phase 6 | Manual ticket exposed via `POST /api/trades/manual` + System Monitor UI form (server.py + system_monitor_ui.js) |
+| 6.3 | Create `frontend/index.html`, `frontend/css/styles.css`, `frontend/js/*.js` | Frontend | Phase 6 | **VERIFIED** — dark-mode terminal shell, Lightweight Charts v5.3.0 vendored, all endpoints smoke-tested |
+| 6.4 | Full end-to-end launch verification in browser, zero console errors | Frontend + QA | Phase 6 | **VERIFIED** — all endpoints smoke-tested OK; `pytest trading_engine/tests/test_phase6_backend_ui.py` **9/9 passed** |
 
 ---
 
@@ -168,6 +168,8 @@
 | 2026-11-09 | Installed `pandas-ta` in `.venv` (already listed in `trading_engine/requirements.txt`) | 130+ installable indicators available as `import pandas_ta as pta`; kept alongside pure-pandas implementations for cross-checking | Backend + QA |
 | 2026-11-09 | Created `docs/contributing_indicators.md` | Step-by-step guide: how to add new indicators per family, keep files separate, enforce zero-look-ahead, write signal wrappers, and test | Architect + QA |
 | 2026-11-09 | Added HMA indicator + signal wrappers + tests to `technical.py`, `technical_signals.py`, `test_phase2_indicators_signals.py` | Demonstrated contribution guide in practice; **61/61 tests passed** | Backend + QA |
+| 2026-11-11 | **Phase 6 complete**: `backend/server.py` (9 routes + WS `/ws/live`), full frontend (`index.html`, `css/styles.css`, `js/{main,chart_engine,footprint_ui,lab_evaluation_ui,system_monitor_ui}.js`, vendored Lightweight Charts v5.3.0), `tests/test_phase6_backend_ui.py` | All endpoints smoke-tested OK; pytest suite **9/9 passed**; Lightweight Charts vendored locally from npm (unpkg CDN 404s) | Backend + Frontend + QA |
+| 2026-11-11 | Fixed Phase 6 test suite: corrected `ROOT` path (3 levels up from `tests/`), converted `@pytest.mark.asyncio` tests to sync `asyncio.run()` (no `pytest-asyncio` available offline), added `count: 0` to empty snapshot case | `pytest-asyncio` not installed; PyPI unreachable | QA |
 
 ---
 

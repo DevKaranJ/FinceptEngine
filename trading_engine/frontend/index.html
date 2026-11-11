@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinceptEngine — Phase 6 Terminal UI</title>
+<link rel="stylesheet" href="css/styles.css">
+<script src="/vendor/lightweightcharts.standalone.production.js"></script>
+<script defer src="js/main.js"></script>
+<script defer src="js/chart_engine.js"></script>
+<script defer src="js/footprint_ui.js"></script>
+<script defer src="js/lab_evaluation_ui.js"></script>
+<script defer src="js/system_monitor_ui.js"></script>
+</head>
+<body>
+<div class="terminal-shell">
+  <!-- Header / title bar -->
+  <div class="terminal-header">
+    <div class="header-left">
+      <div class="dot dot-red"></div>
+      <div class="dot dot-yellow"></div>
+      <div class="dot dot-green"></div>
+      <span class="title">FinceptEngine — Self-Improving Trading Engine</span>
+      <span class="subtitle">v0.1.0 · Phase 6 · FastAPI + Lightweight Charts</span>
+    </div>
+    <div class="header-right" id="status-badge">
+      <span class="badge badge-idle" id="badge-text">IDLE</span>
+      <span class="muted small" id="uptime-text">uptime 0.0s</span>
+    </div>
+  </div>
+
+  <!-- Main split: left nav + right content -->
+  <div class="terminal-body">
+    <nav class="side-nav">
+      <div class="nav-section">
+        <div class="nav-label">MARKET</div>
+        <button class="nav-item nav-item-active" data-tab="chart">Chart</button>
+        <button class="nav-item" data-tab="footprint">Footprint</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">LAB</div>
+        <button class="nav-item" data-tab="lab">Strategy Lab</button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">SYSTEM</div>
+        <button class="nav-item" data-tab="monitor">System Monitor</button>
+      </div>
+      <div class="nav-section nav-section-bottom">
+        <div class="nav-label">CONTROLS</div>
+        <button class="nav-item ctrl-btn" id="btn-connect">Connect WS</button>
+        <button class="nav-item ctrl-btn" id="btn-research">Research → V2</button>
+        <button class="nav-item ctrl-btn" id="btn-manual">Manual Ticket</button>
+      </div>
+    </nav>
+
+    <div class="content-area">
+      <!-- Tab: Chart -->
+      <section id="tab-chart" class="tab-panel tab-active">
+        <div class="panel-header">
+          <span class="panel-title">CHART — <span id="chart-symbol">BTCUSDT</span> · <span id="chart-tf">1m</span></span>
+          <div class="panel-actions">
+            <select id="sel-symbol" class="input-sm">
+              <option value="BTCUSDT">BTCUSDT</option>
+              <option value="ETHUSDT">ETHUSDT</option>
+              <option value="SOLUSDT">SOLUSDT</option>
+            </select>
+            <select id="sel-timeframe" class="input-sm">
+              <option value="1m">1m</option>
+              <option value="5m">5m</option>
+              <option value="15m">15m</option>
+              <option value="1h">1h</option>
+            </select>
+            <button class="btn-sm" id="btn-refresh-snapshot">Refresh</button>
+          </div>
+        </div>
+        <div id="chart-container" class="chart-container"></div>
+        <div class="chart-hints muted small">
+          Overlays: EMA20/50 · RSI14 · ATR14 · HMA20 · Donchian20 · Zero-look-ahead (t &le; T)
+        </div>
+      </section>
+
+      <!-- Tab: Footprint -->
+      <section id="tab-footprint" class="tab-panel">
+        <div class="panel-header">
+          <span class="panel-title">FOOTPRINT LADDER</span>
+          <div class="panel-actions"></div>
+        </div>
+        <div id="footprint-container" class="footprint-container"></div>
+      </section>
+
+      <!-- Tab: Strategy Lab -->
+      <section id="tab-lab" class="tab-panel">
+        <div class="panel-header">
+          <span class="panel-title">STRATEGY LAB — V1 vs V2</span>
+          <div class="panel-actions">
+            <button class="btn-sm" id="btn-lab-refresh">Refresh Reports</button>
+          </div>
+        </div>
+        <div class="lab-grid">
+          <div class="lab-card" id="card-v1">
+            <div class="card-header">V1 — EMA_BREAKOUT_V1 (BASELINE)</div>
+            <div class="card-body" id="lab-v1-metrics">loading…</div>
+          </div>
+          <div class="lab-card" id="card-v2">
+            <div class="card-header">V2 — LATEST CANDIDATE</div>
+            <div class="card-body" id="lab-v2-metrics">loading…</div>
+          </div>
+          <div class="lab-card wide" id="card-heatmap">
+            <div class="card-header">PARAMETER SENSITIVITY HEATMAP (5×5)</div>
+            <div class="card-body" id="lab-heatmap">loading…</div>
+          </div>
+          <div class="lab-card wide" id="card-wfa">
+            <div class="card-header">WALK-FORWARD (K=5) CURVES</div>
+            <div class="card-body" id="lab-wfa">loading…</div>
+          </div>
+        </div>
+        <div class="lab-actions">
+          <button class="btn" id="btn-trigger-research">Trigger Research Loop → Gate V2</button>
+          <span class="muted small" id="lab-status">Idle. V1 stays active unless all 4 gate tests pass.</span>
+        </div>
+      </section>
+
+      <!-- Tab: System Monitor -->
+      <section id="tab-monitor" class="tab-panel">
+        <div class="panel-header">
+          <span class="panel-title">SYSTEM STATUS MONITOR</span>
+          <div class="panel-actions"></div>
+        </div>
+        <div class="monitor-grid" id="monitor-grid">
+          <!-- populated by system_monitor_ui.js -->
+        </div>
+        <div class="panel-header" style="margin-top:16px;">
+          <span class="panel-title">RECENT ACTIVITY</span>
+        </div>
+        <div class="activity-list" id="activity-list">
+          <!-- activity rows -->
+        </div>
+        <div class="manual-ticket" id="manual-ticket" style="display:none;">
+          <div class="panel-header"><span class="panel-title">MANUAL ORDER TICKET (LAST)</span></div>
+          <div class="ticket-body" id="ticket-body"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Status footer -->
+  <div class="terminal-footer">
+    <span id="footer-status">● Disconnected</span>
+    <span class="footer-divider">|</span>
+    <span id="footer-msg">Connect WebSocket to stream live candles &amp; paper positions.</span>
+    <span class="footer-divider">|</span>
+    <span class="muted small">http://127.0.0.1:8765</span>
+  </div>
+</div>
+</body>
+</html>

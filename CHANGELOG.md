@@ -4,6 +4,47 @@
 **Format:** Keep a Changelog — entries are timestamped and logged before each turn ends.
 
 ---
+ 
+## [v0.1.8] — 2026-11-11 — Phase 6: FastAPI Backend & Unified Dark-Mode Terminal UI
+
+**Agent Roles Involved:** Backend, Frontend, QA  
+**Phase:** Phase 6 (branch: `phase6/fastapi-backend-ui`, uncommitted, NOT pushed, NOT merged to `dev`)  
+**Branch:** `phase6/fastapi-backend-ui` (from `dev`)
+
+### Added Files
+| File | Purpose |
+|------|---------|
+| `trading_engine/backend/server.py` | FastAPI REST + WebSocket hub — 9 routes: `GET /`, `GET /api/system/status`, `GET /api/market/snapshot`, `GET /api/trades/memory`, `POST /api/trades/manual`, `GET /api/evaluation/{strategy_id}`, `POST /api/research/trigger`, `GET /api/validation/reports`, `WS /ws/live`. JSON sanitizes Infinity/NaN. Zero look-ahead via SQLite WAL reads only (t <= T). |
+| `trading_engine/frontend/index.html` | Dark-mode terminal shell (header, side nav, tabbed panels: Chart, Footprint, Strategy Lab, System Monitor, Controls). |
+| `trading_engine/frontend/css/styles.css` | Terminal styling (dark palette, badges, cards, monitor grid, heatmap grid, activity list, manual ticket form). |
+| `trading_engine/frontend/js/main.js` | WebSocket orchestration + tab switching + REST refresh loop (status snapshot, market snapshot, validation reports). |
+| `trading_engine/frontend/js/chart_engine.js` | TradingView Lightweight Charts v5.3.0 candlestick + overlays (EMA20/50, RSI14, ATR14, HMA20, Donchian20). |
+| `trading_engine/frontend/js/footprint_ui.js` | Footprint ladder / order-flow visualization. |
+| `trading_engine/frontend/js/lab_evaluation_ui.js` | Strategy Lab: V1 vs V2 metrics, Parameter Sensitivity Heatmap 5×5, Walk-Forward K=5 curves. |
+| `trading_engine/frontend/js/system_monitor_ui.js` | System Status Monitor cards + activity timeline + 1-Click Manual Order Ticket form. |
+| `trading_engine/frontend/vendor/lightweightcharts.standalone.production.js` | Vendored Lightweight Charts v5.3.0 from npm tarball (unpkg CDN 404s; offline-safe). |
+| `trading_engine/tests/test_phase6_backend_ui.py` | Phase 6 verification suite — route registration, WS route type, JSON sanitization, empty-snapshot graceful, trades pagination, validation reports shape, frontend file existence, chart lib API, zero-look-ahead constant. |
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `DEVELOPMENT_PLAN_AND_TODO.md` | Phase 6 tasks 6.1–6.4 moved to COMPLETED & VERIFIED; IN PROGRESS = Phase 6 hard stop gate (9/9 passed), STOPPED awaiting client approval before commit/merge; NEWLY ADDED items for test-fix details. |
+| `CHANGELOG.md` | This entry |
+
+### Removed Files
+- None
+
+### Why the Change Was Made
+Implement PRD Phase 6 deliverables: FastAPI backend (REST + WebSocket hub) serving the unified dark-mode terminal UI with TradingView Lightweight Charts, Strategy Lab (V1 vs V2, heatmap, WFA curves), System Status Monitor, Footprint ladder, and 1-Click Manual Order Ticket. Zero look-ahead protection preserved — all reads use stored historical bars (t <= T). Paper trade first — manual ticket logs `MANUAL_LIVE` trades; human executes broker orders manually; no auto-deployment. Lightweight Charts vendored locally from npm registry (unpkg CDN returns 404 for the needed asset). `pytest-asyncio` unavailable offline; Phase 6 tests use sync `asyncio.run()` instead of `@pytest.mark.asyncio`.
+
+### Test & Verification Status
+- **`pytest`**: **9/9 passed** (`pytest trading_engine/tests/test_phase6_backend_ui.py -v`, 2026-11-11).
+  - Route registration (9 endpoints + WS), WS route type, JSON Infinity/NaN sanitization, empty-snapshot graceful, trades pagination, validation reports shape, frontend file existence, chart lib API, ZERO_LOOK_AHEAD constant.
+- All endpoints smoke-tested against live server on `http://127.0.0.1:8765`: `/`, `/api/system/status`, `/api/market/snapshot`, `/api/trades/memory`, `POST /api/trades/manual`, `/api/evaluation/{strategy_id}`, `/api/validation/reports` — all return correct shapes.
+- Vendor chart lib confirms `createChart` + `CandlestickSeries` + version `5.3.0`.
+- **Phase 6 hard stop gate: PASSED.** STOPPED — awaiting explicit client approval before committing/pushing/merging into `dev` (Rule 6). Do NOT auto-merge.
+
+---
 
 ## [v0.1.0] — 2026-11-08 — Project Initiation, Architecture Baseline & Multi-Agent Governance Setup
 
