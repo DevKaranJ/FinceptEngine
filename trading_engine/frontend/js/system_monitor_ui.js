@@ -58,50 +58,50 @@
       "<span style=\"margin-left:auto;color:#6e6e73;font-size:10px;\">Paper / Manual (human executes broker order manually)</span></div>" +
       "<form id=\"manual-ticket-form\" style=\"padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;\">" +
       "<div style=\"grid-column:span 2;\">" +
-      "<label style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Strategy ID</label>" +
-      "<input name=\"strategy_id\" type=\"text\" value=\"MANUAL\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
+      "<label for=\"ticket-strategy\" style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Strategy ID</label>" +
+      "<input id=\"ticket-strategy\" name=\"strategy_id\" type=\"text\" value=\"MANUAL\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
       "</div>" +
       "<div>" +
-      "<label style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Symbol</label>" +
-      "<select name=\"symbol\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
+      "<label for=\"ticket-symbol\" style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Symbol</label>" +
+      "<select id=\"ticket-symbol\" name=\"symbol\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
       "<option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option>" +
       "</select>" +
       "</div>" +
       "<div>" +
-      "<label style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Timeframe</label>" +
-      "<select name=\"timeframe\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
+      "<label for=\"ticket-timeframe\" style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Timeframe</label>" +
+      "<select id=\"ticket-timeframe\" name=\"timeframe\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
       "<option>1m</option><option>5m</option><option>15m</option><option>1h</option>" +
       "</select>" +
       "</div>" +
       "<div>" +
-      "<label style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Direction</label>" +
-      "<select name=\"direction\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
+      "<label for=\"ticket-direction\" style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Direction</label>" +
+      "<select id=\"ticket-direction\" name=\"direction\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
       "<option>LONG</option><option>SHORT</option>" +
       "</select>" +
       "</div>" +
       "<div style=\"grid-column:span 2;\">" +
-      "<label style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Entry Price</label>" +
-      "<input name=\"entry_price\" type=\"number\" step=\"any\" value=\"\" placeholder=\"e.g. 67420.50\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
+      "<label for=\"ticket-entry\" style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Entry Price</label>" +
+      "<input id=\"ticket-entry\" name=\"entry_price\" type=\"number\" step=\"any\" value=\"\" placeholder=\"e.g. 67420.50\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
       "</div>" +
       "<div>" +
-      "<label style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Stop Loss</label>" +
-      "<input name=\"stop_loss\" type=\"number\" step=\"any\" value=\"\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
+      "<label for=\"ticket-sl\" style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Stop Loss</label>" +
+      "<input id=\"ticket-sl\" name=\"stop_loss\" type=\"number\" step=\"any\" value=\"\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
       "</div>" +
       "<div>" +
-      "<label style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Target 1</label>" +
-      "<input name=\"target_1_price\" type=\"number\" step=\"any\" value=\"\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
+      "<label for=\"ticket-tp1\" style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Target 1</label>" +
+      "<input id=\"ticket-tp1\" name=\"target_1_price\" type=\"number\" step=\"any\" value=\"\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
       "</div>" +
       "<div>" +
-      "<label style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Target 2</label>" +
-      "<input name=\"target_2_price\" type=\"number\" step=\"any\" value=\"\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
+      "<label for=\"ticket-tp2\" style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Target 2</label>" +
+      "<input id=\"ticket-tp2\" name=\"target_2_price\" type=\"number\" step=\"any\" value=\"\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
       "</div>" +
       "<div>" +
-      "<label style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Position Size</label>" +
-      "<input name=\"position_size\" type=\"number\" step=\"any\" value=\"\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
+      "<label for=\"ticket-size\" style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Position Size</label>" +
+      "<input id=\"ticket-size\" name=\"position_size\" type=\"number\" step=\"any\" value=\"\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
       "</div>" +
       "<div style=\"grid-column:span 2;\">" +
-      "<label style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Notes</label>" +
-      "<input name=\"notes\" type=\"text\" value=\"\" placeholder=\"optional\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
+      "<label for=\"ticket-notes\" style=\"display:block;font-size:10px;color:#6e6e73;margin-bottom:4px;\">Notes</label>" +
+      "<input id=\"ticket-notes\" name=\"notes\" type=\"text\" value=\"\" placeholder=\"optional\" style=\"width:100%;background:#0a0a0b;border:1px solid #333338;color:#e8e8ea;border-radius:4px;padding:4px 6px;\">" +
       "</div>" +
       "<div style=\"grid-column:span 2;display:flex;gap:8px;\">" +
       "<button type=\"submit\" style=\"flex:1;background:#1a3a5c;border:1px solid #2a5a7c;color:#7dd3fc;border-radius:4px;padding:6px 12px;cursor:pointer;\">LOG MANUAL TRADE</button>" +
