@@ -1,0 +1,3 @@
+## 2026-11-11 - Form Accessibility and Dark Mode Focus
+**Learning:** In dynamically generated UI templates, implicit label associations (wrapping input in label) are sometimes not used due to styling, but omitting explicit `for` and `id` links severely degrades screen reader accessibility for form fields. Additionally, default `:focus-visible` rings often lack sufficient contrast in dark mode themes, making keyboard navigation invisible.
+**Action:** Always explicitly link `<label for="id">` to `<input id="id">` when building dynamic form HTML strings. Always test keyboard navigation (Tab key) and add a custom, high-contrast `:focus-visible` utility class when implementing dark mode interfaces.
