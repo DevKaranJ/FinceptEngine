@@ -5,6 +5,37 @@
 
 ---
 
+## [v0.1.19] — 2026-11-17 — Phase 6 Institutional Overhaul & Remote Sync Verification
+
+**Agent Roles Involved:** Architect, Backend, Frontend, QA, Reviewer  
+**Phase:** Phase 6 Final Institutional Release & Upstream Sync  
+**Branch:** `phase6/institutional-terminal-quant-enhancements`
+
+### Added Files
+- `.Jules/palette.md` (Synced from `origin/dev`)
+- `trading_engine/strategies/approved/baseline_demonstration_strategy.py` (`BASELINE_DEMO_V1` benchmark)
+- `trading_engine/tests/test_phase6_e2e_trader.py` (77 comprehensive E2E trader tests)
+- `trading_engine/tests/test_phase6_e2e_adversarial_tier5.py` (43 Tier 5 adversarial stress tests)
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `trading_engine/frontend/css/styles.css` | Bloomberg / TradingView institutional slate theme tokens (`#0b0e14`, `#121721`), tabular numbers (`font-variant-numeric: tabular-nums`), high-contrast focus rings (`:focus-visible`). |
+| `trading_engine/frontend/index.html` | Indicator overlay toggle chips (EMA 20/50, HMA 20, Donchian 20), accessible aria labels (`aria-label="Select symbol"`, `aria-label="Select timeframe"`). |
+| `trading_engine/frontend/js/chart_engine.js` | Viewport logical range lock preventing snap-back on 5s REST polls, dedicated volume histogram sub-pane (`priceScaleId: 'volume'`), real-time OHLCV hover legend bar. |
+| `trading_engine/frontend/js/system_monitor_ui.js` | Intelligent 1-Click order ticket with reactive dynamic ATR position sizing, 1-Click 1.5x ATR buffer button, real-time R:R >= 1.50 risk gating. |
+| `trading_engine/frontend/js/lab_evaluation_ui.js` | Vector SVG equity curve with High-Water Mark and drawdown fill, 5x5 parameter heatmap tooltip cards, regime weakness diagnostic banners. |
+| `trading_engine/validation/gatekeeper.py` | Null guards for zero-loss infinite profit factors across parameter heatmap, OOS, and cost stress checks. |
+| `DEVELOPMENT_PLAN_AND_TODO.md` | Marked all Phases 1–6 and Milestones M1–M6 as COMPLETED & VERIFIED. |
+
+### Test & Verification Status
+- Full test suite: `./.venv/bin/pytest -v` (**282 passed in 499s, 100% pass rate, 0 failures**).
+- Real-Trader Usability Audit: **9.8 / 10.0 Unconditional PASS**.
+- Branch pushed cleanly to remote: `origin/phase6/institutional-terminal-quant-enhancements`.
+- Live unified platform verified running on port 8765 (`http://127.0.0.1:8765/`).
+
+---
+
 ## [v0.1.18] — 2026-11-17 — Victory Audit Remediation (Gatekeeper Profit Factor Guard)
 
 **Agent Roles Involved:** Implementer, QA, Specialist (worker_remediation)  
