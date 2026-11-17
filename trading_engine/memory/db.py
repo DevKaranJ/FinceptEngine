@@ -13,7 +13,9 @@ Database file: trading_engine.db (PRAGMA journal_mode=WAL)
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import threading
 from typing import Any
 
 from ..config import DB_PATH, DB_WAL_MODE, DB_BUSY_TIMEOUT_MS
@@ -123,16 +125,31 @@ CREATE_INDEXES: list[str] = [
 ]
 
 
+_INITIALIZED_DBS: set[str] = set()
+_INIT_LOCK = threading.Lock()
+
+
 def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
     """Open a SQLite connection in WAL mode with a busy timeout."""
     conn = sqlite3.connect(db_path, timeout=DB_BUSY_TIMEOUT_MS / 1000.0)
-    conn.execute(DB_WAL_MODE)
+    conn.execute(f"PRAGMA busy_timeout = {DB_BUSY_TIMEOUT_MS};")
+    try:
+        conn.execute(DB_WAL_MODE)
+    except sqlite3.OperationalError:
+        pass
+    conn.execute("PRAGMA synchronous = NORMAL;")
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def initialize_database(db_path: str = DB_PATH) -> None:
+def initialize_database(db_path: str = DB_PATH, force: bool = False) -> None:
     """Create all tables and indexes idempotently."""
+    norm_path = os.path.abspath(db_path)
+    if not force:
+        with _INIT_LOCK:
+            if norm_path in _INITIALIZED_DBS and os.path.exists(norm_path) and os.path.getsize(norm_path) > 0:
+                return
+
     conn = get_connection(db_path)
     try:
         cur = conn.cursor()
@@ -141,6 +158,8 @@ def initialize_database(db_path: str = DB_PATH) -> None:
         for index_ddl in CREATE_INDEXES:
             cur.execute(index_ddl)
         conn.commit()
+        with _INIT_LOCK:
+            _INITIALIZED_DBS.add(norm_path)
     finally:
         conn.close()
 
@@ -151,9 +170,13 @@ def log_activity(
     summary: str,
     details: dict[str, Any] | None = None,
     db_path: str = DB_PATH,
+    conn: sqlite3.Connection | None = None,
 ) -> None:
     """Append an entry to system_activity_log."""
-    conn = get_connection(db_path)
+    should_close = False
+    if conn is None:
+        conn = get_connection(db_path)
+        should_close = True
     try:
         conn.execute(
             """
@@ -171,7 +194,8 @@ def log_activity(
         )
         conn.commit()
     finally:
-        conn.close()
+        if should_close:
+            conn.close()
 
 
 def now_utc_iso() -> str:

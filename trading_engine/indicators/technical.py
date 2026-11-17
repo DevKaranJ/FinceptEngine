@@ -68,8 +68,24 @@ def rsi(close: pd.Series, length: int = 14) -> pd.Series:
     loss = -delta.clip(upper=0.0)
     avg_gain = gain.ewm(alpha=1 / length, min_periods=length, adjust=False).mean()
     avg_loss = loss.ewm(alpha=1 / length, min_periods=length, adjust=False).mean()
-    rs = avg_gain / avg_loss.replace(0, np.nan)
-    rsi_values = 100.0 - (100.0 / (1.0 + rs))
+
+    rsi_values = pd.Series(np.nan, index=close.index, dtype=float)
+    valid_mask = avg_gain.notna() & avg_loss.notna()
+
+    # Where both avg_gain == 0 and avg_loss == 0 (flat market): RSI is 50.0
+    flat_mask = valid_mask & (avg_gain == 0.0) & (avg_loss == 0.0)
+    rsi_values[flat_mask] = 50.0
+
+    # Where avg_loss == 0 and avg_gain > 0 (pure rally): RSI is 100.0
+    rally_mask = valid_mask & (avg_loss == 0.0) & (avg_gain > 0.0)
+    rsi_values[rally_mask] = 100.0
+
+    # Standard Wilder calculation where avg_loss > 0
+    std_mask = valid_mask & (avg_loss > 0.0)
+    if std_mask.any():
+        rs = avg_gain[std_mask] / avg_loss[std_mask]
+        rsi_values[std_mask] = 100.0 - (100.0 / (1.0 + rs))
+
     return rsi_values
 
 
@@ -142,29 +158,52 @@ def supertrend(
     direction = np.full(n, 1, dtype=int)
 
     for i in range(1, n):
+        curr_upper = upper_band.iloc[i]
+        curr_lower = lower_band.iloc[i]
+        if np.isnan(curr_upper) or np.isnan(curr_lower):
+            continue
+
         prev_st = supertrend[i - 1]
         prev_dir = direction[i - 1]
         curr_close = close.iloc[i]
-        curr_upper = upper_band.iloc[i]
-        curr_lower = lower_band.iloc[i]
         prev_close = close.iloc[i - 1]
+
+        if np.isnan(prev_st):
+            # Seed bar
+            if curr_close < curr_lower:
+                direction[i] = -1
+                supertrend[i] = curr_upper
+            else:
+                direction[i] = 1
+                supertrend[i] = curr_lower
+            continue
 
         if prev_dir == 1:
             # In uptrend: ST is the lower band unless price closes below it.
             if curr_lower > prev_st or prev_close > curr_lower:
-                supertrend[i] = curr_lower
-                direction[i] = -1 if curr_close < curr_lower else 1
+                st_candidate = curr_lower
             else:
-                supertrend[i] = prev_st
+                st_candidate = prev_st
+
+            if curr_close < st_candidate:
+                direction[i] = -1
+                supertrend[i] = curr_upper
+            else:
                 direction[i] = 1
+                supertrend[i] = st_candidate
         else:
             # In downtrend: ST is the upper band unless price closes above it.
             if curr_upper < prev_st or prev_close < curr_upper:
-                supertrend[i] = curr_upper
-                direction[i] = 1 if curr_close > curr_upper else -1
+                st_candidate = curr_upper
             else:
-                supertrend[i] = prev_st
+                st_candidate = prev_st
+
+            if curr_close > st_candidate:
+                direction[i] = 1
+                supertrend[i] = curr_lower
+            else:
                 direction[i] = -1
+                supertrend[i] = st_candidate
 
     return {
         "supertrend": pd.Series(supertrend, index=close.index),

@@ -177,7 +177,11 @@ class ValidationGatekeeper:
         oos_risk = compute_risk(oos_res_v2.closed_trades, oos_res_v2.equity_curve)
         oos_risk_v1 = compute_risk(oos_res_v1.closed_trades, oos_res_v1.equity_curve)
 
-        pf_ok = oos_perf["profit_factor"] >= OOS_PF_MIN
+        oos_pf_val = (
+            float("inf") if oos_perf["profit_factor"] is None
+            else oos_perf["profit_factor"]
+        )
+        pf_ok = oos_pf_val >= OOS_PF_MIN
         er_ok = (
             oos_perf["expectancy_r"] > oos_perf_v1["expectancy_r"]
         ) if oos_perf_v1["total_trades"] > 0 else True
@@ -210,8 +214,12 @@ class ValidationGatekeeper:
             slippage_bp=stressed_slippage,
         )
         stressed_perf = compute_performance(stressed_res.closed_trades)
+        stressed_pf_val = (
+            float("inf") if stressed_perf["profit_factor"] is None
+            else stressed_perf["profit_factor"]
+        )
         cost_stress_passed = (
-            stressed_perf["profit_factor"] >= COST_STRESS_PF_MIN
+            stressed_pf_val >= COST_STRESS_PF_MIN
             and stressed_perf["expectancy_r"] >= COST_STRESS_ER_MIN
             and stressed_perf["total_trades"] >= MIN_TRADES_FOR_METRIC
         )
@@ -395,15 +403,17 @@ class ValidationGatekeeper:
                 )
                 perf = compute_performance(res.closed_trades)
                 pf = perf["profit_factor"]
-                passed = pf > HEATMAP_PF_MIN and perf["total_trades"] >= MIN_TRADES_FOR_METRIC
+                pf_val = float("inf") if pf is None else pf
+                passed = pf_val > HEATMAP_PF_MIN and perf["total_trades"] >= MIN_TRADES_FOR_METRIC
                 if passed:
                     pass_count += 1
                 cells.append({
                     "p1": p1_name, "p1_value": round(p1_val, 6),
                     "p2": p2_name, "p2_value": round(p2_val, 6),
-                    "profit_factor": round(pf, 4),
+                    "profit_factor": round(pf, 4) if pf is not None else None,
                     "expectancy_r": round(perf["expectancy_r"], 4),
                     "total_trades": perf["total_trades"],
+                    "win_rate_pct": round(perf["win_rate_pct"], 2),
                     "passed": passed,
                 })
 

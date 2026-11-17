@@ -14,8 +14,15 @@ env/
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
 trading_engine.db
 *.parquet
+
+# Generated / artifacts / wheels
+*.whl
+graphify-out/
+trading_engine/strategies/candidates/v2_candidate_*.py
 
 # pytest
 .pytest_cache/

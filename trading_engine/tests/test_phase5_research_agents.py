@@ -360,7 +360,7 @@ def test_review_agent_rejects_look_ahead_source():
         assert audit["passed"] is False
         assert len(audit["findings"]) > 0
     finally:
-        _cleanup_db(DB_PATH)
+        _cleanup_db(review.db_path)
 
 
 def test_full_loop_promotes_when_gate_passes():

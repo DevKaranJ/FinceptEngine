@@ -175,15 +175,16 @@ class Backtester:
                 pos.update_excursion(high, low)
 
             # 2. Check exits for every open position.
+            open_val = float(row["open"]) if "open" in row else None
             for trade_id in list(self.positions.keys()):
                 pos = self.positions[trade_id]
-                result = self._check_exits(pos, high, low, close, current_time_utc)
+                result = self._check_exits(pos, high, low, close, current_time_utc, open_price=open_val)
                 if result.action != "HOLD":
                     self._finalize_close(pos, result)
                     del self.positions[trade_id]
 
-            # 3. Evaluate strategy for a new signal (if not halted).
-            if not self.risk.is_halted:
+            # 3. Evaluate strategy for a new signal (if not halted and position limit not reached).
+            if not self.risk.is_halted and len(self.positions) < 5:
                 signal = self.strategy.evaluate(df_features, i)
                 if signal is not None:
                     result = self._open_position(signal, row, close, current_time_utc)
@@ -325,10 +326,18 @@ class Backtester:
         low: float,
         close: float,
         current_time_utc: str,
+        open_price: float | None = None,
     ) -> FillResult:
         if pos.direction == "LONG":
             if low <= pos.stop_loss:
-                return self._build_close_result(pos, pos.stop_loss, "STOP_LOSS",
+                # Realistic gap execution: if bar opened/traded below stop loss
+                if open_price is not None and open_price < pos.stop_loss:
+                    fill_price = min(pos.stop_loss, open_price)
+                elif high < pos.stop_loss:
+                    fill_price = high
+                else:
+                    fill_price = pos.stop_loss
+                return self._build_close_result(pos, fill_price, "STOP_LOSS",
                                                 high, low, close, current_time_utc)
             if high >= pos.target_2:
                 return self._build_close_result(pos, pos.target_2, "TAKE_PROFIT",
@@ -338,7 +347,14 @@ class Backtester:
                                                 high, low, close, current_time_utc)
         else:  # SHORT
             if high >= pos.stop_loss:
-                return self._build_close_result(pos, pos.stop_loss, "STOP_LOSS",
+                # Realistic gap execution for SHORT:
+                if open_price is not None and open_price > pos.stop_loss:
+                    fill_price = max(pos.stop_loss, open_price)
+                elif low > pos.stop_loss:
+                    fill_price = low
+                else:
+                    fill_price = pos.stop_loss
+                return self._build_close_result(pos, fill_price, "STOP_LOSS",
                                                 high, low, close, current_time_utc)
             if low <= pos.target_2:
                 return self._build_close_result(pos, pos.target_2, "TAKE_PROFIT",

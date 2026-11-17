@@ -42,6 +42,7 @@ def pdh_pdl_pdc(high: pd.Series, low: pd.Series, close: pd.Series) -> dict[str, 
 
     Returns ``{"pdh": ..., "pdl": ..., "pdc": ...}``.
     """
+    orig_index = high.index
     df = pd.DataFrame({"high": high, "low": low, "close": close})
     # Normalize index to a DatetimeIndex so we can group by calendar date.
     if not isinstance(df.index, pd.DatetimeIndex):
@@ -68,7 +69,11 @@ def pdh_pdl_pdc(high: pd.Series, low: pd.Series, close: pd.Series) -> dict[str, 
     pdl = prev_date.map(daily_low)
     pdc = prev_date.map(daily_close)
 
-    return {"pdh": pdh, "pdl": pdl, "pdc": pdc}
+    return {
+        "pdh": pdh.reindex(orig_index),
+        "pdl": pdl.reindex(orig_index),
+        "pdc": pdc.reindex(orig_index),
+    }
 
 
 def opening_range(
