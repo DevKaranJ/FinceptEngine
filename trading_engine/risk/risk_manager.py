@@ -110,18 +110,30 @@ class RiskManager:
         entry_price: float,
         stop_loss: float,
         direction: str = "LONG",
+        max_leverage: float = 50.0,
     ) -> tuple[float, float, float]:
         """Return ``(position_size, risk_amount, risk_per_share)``.
 
         Risk per share = |entry - stop|. Position size caps risk at
-        ``max_risk_per_trade_pct`` of account equity.
+        ``max_risk_per_trade_pct`` of account equity, bounded by max_leverage.
         """
         risk_per_share = abs(entry_price - stop_loss)
+        if self.account_equity <= 0:
+            return 0.0, 0.0, risk_per_share
+
         if risk_per_share <= 0:
             return 0.0, 0.0, 0.0
 
         max_risk_dollars = self.account_equity * (self.max_risk_per_trade_pct / 100.0)
         position_size = max_risk_dollars / risk_per_share
+
+        # Leverage / notional cap: notional cannot exceed max_leverage * account_equity
+        if entry_price > 0 and max_leverage > 0:
+            max_notional = self.account_equity * max_leverage
+            max_units = max_notional / entry_price
+            if position_size > max_units:
+                position_size = max_units
+
         risk_amount = position_size * risk_per_share
         return position_size, risk_amount, risk_per_share
 
@@ -144,6 +156,12 @@ class RiskManager:
     # ------------------------------------------------------------------ #
     # Trade validation (circuit breakers + R:R)                          #
     # ------------------------------------------------------------------ #
+    def check_daily_loss(self) -> bool:
+        """Return True if daily loss limit reached (breaker tripped)."""
+        if self.account_equity > 0 and self.daily.daily_pnl < 0:
+            return self.daily.daily_pnl <= -abs(self.daily_loss_circuit_breaker_pct / 100.0 * self.account_equity)
+        return False
+
     def can_open_trade(self, direction: str = "LONG") -> RiskCheck:
         """Decide whether a new trade may be opened right now.
 
@@ -151,7 +169,7 @@ class RiskManager:
         breaker, max drawdown kill-switch, minimum R:R feasibility.
         """
         # Daily loss circuit breaker
-        if self.daily.daily_pnl <= -abs(self.daily_loss_circuit_breaker_pct / 100.0 * self.account_equity):
+        if self.check_daily_loss():
             return RiskCheck(False, "DAILY_LOSS_CIRCUIT_BREAKER", halted=True)
 
         # Consecutive-loss circuit breaker
@@ -172,6 +190,38 @@ class RiskManager:
             return False
         reward = abs(target_1 - entry_price)
         return (reward / risk) >= self.min_risk_reward_ratio
+
+    def validate_order(
+        self,
+        entry_price: float,
+        stop_loss: float,
+        target_1: float,
+        direction: str = "LONG",
+        position_size: float = 1.0,
+    ) -> tuple[bool, str]:
+        """Validate order parameters before execution."""
+        if entry_price <= 0:
+            return False, "Entry price must be strictly positive"
+        if stop_loss <= 0:
+            return False, "Stop loss price must be strictly positive"
+        if target_1 <= 0:
+            return False, "Target price must be strictly positive"
+        if position_size <= 0:
+            return False, "Position size must be strictly positive"
+
+        if direction == "LONG":
+            if not (stop_loss < entry_price < target_1):
+                return False, "Long stop-loss must be strictly below entry price and entry below target"
+        elif direction == "SHORT":
+            if not (stop_loss > entry_price > target_1):
+                return False, "Short stop-loss must be strictly above entry price and entry above target"
+        else:
+            return False, f"Invalid direction: {direction}"
+
+        if not self.validate_rr(entry_price, stop_loss, target_1, direction):
+            return False, "Risk-to-reward ratio below minimum threshold"
+
+        return True, "OK"
 
     # ------------------------------------------------------------------ #
     # Execution costs                                                     #
@@ -194,7 +244,7 @@ class RiskManager:
     def close_trade(self, net_pnl: float, equity: float) -> None:
         """Record a closed trade's PnL into daily risk state."""
         self.daily.record_trade_pnl(net_pnl, equity)
-        if self.daily.daily_pnl <= -abs(self.daily_loss_circuit_breaker_pct / 100.0 * self.account_equity):
+        if self.check_daily_loss():
             self.daily.halted = True
             self.daily.halt_reason = "DAILY_LOSS_CIRCUIT_BREAKER"
         elif self.daily.consecutive_losses >= self.max_consecutive_losses:

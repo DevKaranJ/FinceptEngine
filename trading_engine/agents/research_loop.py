@@ -722,11 +722,14 @@ class ResearchLoop:
     the active approved/ directory is never overwritten by this loop.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
+        import trading_engine.config as cfg
+        actual_db_path = db_path or cfg.DB_PATH
+        self.db_path = actual_db_path
         self.research = ResearchAgent()
         self.hypothesis = HypothesisAgent()
         self.coding = CodingAgent()
-        self.review = ReviewAgent()
+        self.review = ReviewAgent(db_path=actual_db_path)
 
     def run(
         self,

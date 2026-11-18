@@ -63,7 +63,7 @@ MIN_RISK_REWARD_RATIO = 1.5        # minimum R:R before a trade is taken
 # ---------------------------------------------------------------------------
 DB_PATH = "trading_engine.db"
 DB_WAL_MODE = "PRAGMA journal_mode=WAL;"
-DB_BUSY_TIMEOUT_MS = 5000
+DB_BUSY_TIMEOUT_MS = 30000
 
 # ---------------------------------------------------------------------------
 # Feature / look-ahead guard

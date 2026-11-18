@@ -50,7 +50,12 @@ def compute_performance(trades: list[dict[str, Any]]) -> dict[str, Any]:
     losses = [t for t in closed if t["net_pnl"] < 0]
     gross_profit = sum(t["net_pnl"] for t in wins)
     gross_loss = abs(sum(t["net_pnl"] for t in losses))
-    profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else float("inf")
+    if gross_loss > 0:
+        profit_factor = round(gross_profit / gross_loss, 4)
+    elif gross_profit > 0:
+        profit_factor = None
+    else:
+        profit_factor = 0.0
     net_pnl = sum(t["net_pnl"] for t in closed)
 
     win_rate_pct = len(wins) / n * 100.0
@@ -73,7 +78,7 @@ def compute_performance(trades: list[dict[str, Any]]) -> dict[str, Any]:
         "win_count": len(wins),
         "loss_count": len(losses),
         "win_rate_pct": round(win_rate_pct, 4),
-        "profit_factor": round(profit_factor, 4),
+        "profit_factor": profit_factor,
         "expectancy_r": round(expectancy_r, 4),
         "gross_profit": round(gross_profit, 4),
         "gross_loss": round(gross_loss, 4),
@@ -156,7 +161,7 @@ def compute_regime_breakdown(trades: list[dict[str, Any]]) -> dict[str, Any]:
     """
     regimes: dict[str, list[dict[str, Any]]] = {}
     for t in trades:
-        snap = t.get("regime_snapshot") or {}
+        snap = t.get("regime_snapshot") or t.get("regime_snapshot_json") or {}
         if isinstance(snap, str):
             try:
                 snap = json.loads(snap)
@@ -210,7 +215,7 @@ def detect_weaknesses(
         if perf["expectancy_r"] <= 0.0:
             flags.append("NEGATIVE_EXPECTANCY")
             severity = "HIGH"
-        if perf["profit_factor"] < 1.10 and perf["total_trades"] > 0:
+        if perf["profit_factor"] is not None and perf["profit_factor"] < 1.10 and perf["total_trades"] > 0:
             flags.append("LOW_PROFIT_FACTOR")
             if severity != "HIGH":
                 severity = "MEDIUM"
@@ -302,11 +307,25 @@ def detect_weaknesses(
     return report
 
 
+def _clean_non_finite(obj: Any) -> Any:
+    """Recursively clean non-finite numbers into None for RFC 8259 JSON compliance."""
+    if isinstance(obj, float):
+        if math.isinf(obj) or math.isnan(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: _clean_non_finite(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_clean_non_finite(v) for v in obj]
+    return obj
+
+
 def weakness_report_json(trades: list[dict[str, Any]],
                          equity_curve: list[tuple[str, float]] | None = None,
                          ) -> str:
     """Return the weakness detection report as a JSON string."""
-    return json.dumps(detect_weaknesses(trades, equity_curve), indent=2)
+    report = detect_weaknesses(trades, equity_curve)
+    return json.dumps(_clean_non_finite(report), indent=2)
 
 
 __all__ = [

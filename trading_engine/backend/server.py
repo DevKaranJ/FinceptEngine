@@ -21,12 +21,14 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sqlite3
 import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
@@ -52,6 +54,9 @@ from trading_engine.evaluation.analyzer import (
 from trading_engine.validation.backtester import Backtester
 from trading_engine.validation.gatekeeper import ValidationGatekeeper
 from trading_engine.strategies.base_strategy import BaseStrategy
+from trading_engine.strategies.approved.baseline_demonstration_strategy import (
+    BaselineDemonstrationStrategy,
+)
 from trading_engine.strategies.approved.ema_breakout_v1 import EmaBreakoutV1
 from trading_engine.indicators.technical import (
     ema as _ema,
@@ -67,9 +72,17 @@ from trading_engine.indicators.technical import (
 # --------------------------------------------------------------------------- #
 app = FastAPI(title="FinceptEngine — FastAPI Backend", version="0.1.0")
 
-_frontend_dir = "trading_engine/frontend"
-_static_dir = "trading_engine/frontend/vendor"
-app.mount("/vendor", StaticFiles(directory=_static_dir), name="vendor")
+_backend_dir = os.path.dirname(os.path.abspath(__file__))
+_trading_engine_dir = os.path.dirname(_backend_dir)
+_frontend_dir = os.path.join(_trading_engine_dir, "frontend")
+
+_css_dir = os.path.join(_frontend_dir, "css")
+_js_dir = os.path.join(_frontend_dir, "js")
+_vendor_dir = os.path.join(_frontend_dir, "vendor")
+
+app.mount("/css", StaticFiles(directory=_css_dir), name="css")
+app.mount("/js", StaticFiles(directory=_js_dir), name="js")
+app.mount("/vendor", StaticFiles(directory=_vendor_dir), name="vendor")
 
 _engine_started_utc = iso_now_utc()
 
@@ -171,18 +184,32 @@ def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
                 d[key] = json.loads(val)
             except Exception:
                 d[key] = {}
+    if "regime_snapshot_json" in d:
+        d["regime_snapshot"] = d["regime_snapshot_json"]
+    if "active_signals_json" in d:
+        d["active_signals"] = d["active_signals_json"]
+    if "parameters_json" in d:
+        d["parameters"] = d["parameters_json"]
     return d
 
 
 def _sanitize_json(obj: Any) -> Any:
     """Replace Infinity/-Infinity/NaN with JSON-safe null so responses serialize."""
-    if isinstance(obj, float):
+    if isinstance(obj, (bool, np.bool_)):
+        return bool(obj)
+    if isinstance(obj, (float, np.floating)):
         if math.isinf(obj) or math.isnan(obj):
             return None
+        return float(obj)
+    if isinstance(obj, (int, np.integer)):
+        return int(obj)
+    if isinstance(obj, str) or obj is None:
         return obj
+    if isinstance(obj, np.ndarray):
+        return [_sanitize_json(v) for v in obj.tolist()]
     if isinstance(obj, dict):
         return {k: _sanitize_json(v) for k, v in obj.items()}
-    if isinstance(obj, list):
+    if isinstance(obj, (list, tuple)):
         return [_sanitize_json(v) for v in obj]
     return obj
 
@@ -210,7 +237,7 @@ def _ohlcv_query(
 @app.get("/", response_class=HTMLResponse)
 async def root() -> HTMLResponse:
     """Serve the dark-mode terminal frontend."""
-    index_path = f"{_frontend_dir}/index.html"
+    index_path = os.path.join(_frontend_dir, "index.html")
     try:
         with open(index_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
@@ -338,9 +365,10 @@ async def market_snapshot(
         overlays["rsi_14"] = _rsi(close, 14).round(2).tolist()
         overlays["atr_14"] = _atr(high, low, close, 14).round(4).tolist()
         overlays["hma_20"] = _hma(close, 20).round(4).tolist()
-        upper, middle, lower = _donchian(high, low, 20)
-        overlays["donchian_upper_20"] = upper.round(4).tolist()
-        overlays["donchian_lower_20"] = lower.round(4).tolist()
+        dc = _donchian(high, low, 20)
+        overlays["donchian_upper_20"] = dc["upper"].round(4).tolist()
+        overlays["donchian_middle_20"] = dc["middle"].round(4).tolist()
+        overlays["donchian_lower_20"] = dc["lower"].round(4).tolist()
     except Exception as exc:
         overlays = {"error": str(exc)}
 
@@ -461,6 +489,11 @@ class ManualTradeIn:
 async def manual_trade(payload: dict[str, Any]) -> dict[str, Any]:
     """Log a human-executed trade from the 1-Click Manual Order Ticket."""
     try:
+        raw_t2 = payload.get("target_2_price")
+        parsed_t2: float | None = None
+        if raw_t2 is not None and str(raw_t2).strip() != "":
+            parsed_t2 = float(raw_t2)
+
         trade = ManualTradeIn(
             strategy_id=str(payload.get("strategy_id", "MANUAL")),
             symbol=str(payload.get("symbol", "BTCUSDT")),
@@ -469,7 +502,7 @@ async def manual_trade(payload: dict[str, Any]) -> dict[str, Any]:
             entry_price=float(payload.get("entry_price", 0.0)),
             stop_loss=float(payload.get("stop_loss", 0.0)),
             target_1_price=float(payload.get("target_1_price", 0.0)),
-            target_2_price=payload.get("target_2_price"),
+            target_2_price=parsed_t2,
             position_size=float(payload.get("position_size", 0.0)),
             regime_snapshot=payload.get("regime_snapshot") or {},
             active_signals=payload.get("active_signals") or [],
@@ -478,26 +511,96 @@ async def manual_trade(payload: dict[str, Any]) -> dict[str, Any]:
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=f"invalid payload: {exc}")
 
+    # Sanitize numerical inputs with math.isfinite()
+    for field_name, val in [
+        ("entry_price", trade.entry_price),
+        ("stop_loss", trade.stop_loss),
+        ("target_1_price", trade.target_1_price),
+        ("position_size", trade.position_size),
+    ]:
+        if not math.isfinite(val):
+            raise HTTPException(status_code=422, detail=f"{field_name} must be a finite number")
+    if trade.target_2_price is not None and not math.isfinite(trade.target_2_price):
+        raise HTTPException(status_code=422, detail="target_2_price must be a finite number")
+
     if trade.entry_price <= 0 or trade.position_size <= 0:
         raise HTTPException(status_code=400, detail="entry_price and position_size must be > 0")
 
-    logger = TradeLogger(db_path=DB_PATH)
-    trade_id = logger.open_trade(
-        strategy_id=trade.strategy_id,
-        execution_mode="MANUAL_LIVE",
-        symbol=trade.symbol,
-        timeframe=trade.timeframe,
-        direction=trade.direction,
-        entry_time_utc=iso_now_utc(),
-        entry_price=trade.entry_price,
-        stop_loss=trade.stop_loss,
-        target_1_price=trade.target_1_price,
-        target_2_price=trade.target_2_price,
-        position_size=trade.position_size,
-        regime_snapshot=trade.regime_snapshot,
-        active_signals=trade.active_signals,
-        notes=trade.notes,
-    )
+    if trade.stop_loss <= 0 or trade.target_1_price <= 0:
+        raise HTTPException(status_code=422, detail="stop_loss and target_1_price must be > 0")
+
+    # Enforce directional and risk validation (R:R >= 1.5)
+    if trade.direction == "LONG":
+        if not (trade.stop_loss < trade.entry_price < trade.target_1_price):
+            raise HTTPException(
+                status_code=422,
+                detail=f"Inverted stops or target for LONG: stop_loss ({trade.stop_loss}) must be < entry_price ({trade.entry_price}) < target_1_price ({trade.target_1_price})",
+            )
+        if trade.target_2_price is not None:
+            if trade.target_2_price <= trade.target_1_price:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"target_2_price ({trade.target_2_price}) must be > target_1_price ({trade.target_1_price}) for LONG",
+                )
+    elif trade.direction == "SHORT":
+        if not (trade.stop_loss > trade.entry_price > trade.target_1_price):
+            raise HTTPException(
+                status_code=422,
+                detail=f"Inverted stops or target for SHORT: stop_loss ({trade.stop_loss}) must be > entry_price ({trade.entry_price}) > target_1_price ({trade.target_1_price})",
+            )
+        if trade.target_2_price is not None:
+            if not (0 < trade.target_2_price < trade.target_1_price):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"target_2_price ({trade.target_2_price}) must be < target_1_price ({trade.target_1_price}) and > 0 for SHORT",
+                )
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid trade direction: {trade.direction}. Must be LONG or SHORT.",
+        )
+
+    risk = abs(trade.entry_price - trade.stop_loss)
+    reward = abs(trade.target_1_price - trade.entry_price)
+
+    if risk <= 0:
+        raise HTTPException(status_code=422, detail="Risk distance must be greater than zero")
+
+    try:
+        rr = reward / risk
+        if not math.isfinite(rr):
+            raise HTTPException(status_code=422, detail="Risk-to-Reward ratio is non-finite")
+        if round(rr, 4) < 1.50:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Risk-to-Reward ratio ({rr:.2f}) is below mandatory threshold 1.50",
+            )
+    except OverflowError:
+        raise HTTPException(status_code=422, detail="Risk-to-Reward ratio calculation overflow")
+
+    try:
+        logger = TradeLogger(db_path=DB_PATH)
+        trade_id = logger.open_trade(
+            strategy_id=trade.strategy_id,
+            execution_mode="MANUAL_LIVE",
+            symbol=trade.symbol,
+            timeframe=trade.timeframe,
+            direction=trade.direction,
+            entry_time_utc=iso_now_utc(),
+            entry_price=trade.entry_price,
+            stop_loss=trade.stop_loss,
+            target_1_price=trade.target_1_price,
+            target_2_price=trade.target_2_price,
+            position_size=trade.position_size,
+            regime_snapshot=trade.regime_snapshot,
+            active_signals=trade.active_signals,
+            notes=trade.notes,
+            trade_id=payload.get("trade_id"),
+        )
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(status_code=409, detail=f"Duplicate trade_id or integrity conflict: {exc}")
+    except sqlite3.OperationalError as exc:
+        raise HTTPException(status_code=503, detail=f"Database temporarily busy: {exc}")
 
     live.set_manual_ticket({
         "trade_id": trade_id,
@@ -526,14 +629,26 @@ async def manual_trade(payload: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "ok": True,
+        "status": "OK",
         "trade_id": trade_id,
-        "status": "OPEN",
         "message": "Manual trade logged (human executes broker order manually).",
     }
 
 
+def _to_unix_ts(val: Any) -> int:
+    """Helper to convert string/numeric timestamps to unix integer seconds."""
+    if isinstance(val, (int, float)):
+        return int(val)
+    if isinstance(val, str):
+        try:
+            return int(datetime.fromisoformat(val.replace("Z", "+00:00")).timestamp())
+        except Exception:
+            pass
+    return int(datetime.now(timezone.utc).timestamp())
+
+
 # --------------------------------------------------------------------------- #
-# REST: evaluation                                                            #
+# REST: evaluation & diagnostics                                              #
 # --------------------------------------------------------------------------- #
 @app.get("/api/evaluation/{strategy_id}")
 async def evaluation(strategy_id: str) -> dict[str, Any]:
@@ -563,20 +678,66 @@ async def evaluation(strategy_id: str) -> dict[str, Any]:
 
     trades = [_row_to_dict(r) for r in rows]
 
+    # Build real equity curve time-series from closed trades
+    equity_curve: list[dict[str, Any]] = []
+    equity_curve_tuples: list[tuple[str | int, float]] = []
+    if trades:
+        initial_equity = 10000.0
+        first_t = _to_unix_ts(trades[0].get("entry_time_utc"))
+        equity_curve.append({"t": first_t, "equity": float(initial_equity)})
+        equity_curve_tuples.append((first_t, float(initial_equity)))
+        cum_equity = initial_equity
+        for t in trades:
+            cum_equity += float(t.get("net_pnl") or 0.0)
+            exit_t = _to_unix_ts(t.get("exit_time_utc") or t.get("entry_time_utc"))
+            rounded_eq = round(float(cum_equity), 2)
+            equity_curve.append({"t": exit_t, "equity": rounded_eq})
+            equity_curve_tuples.append((exit_t, rounded_eq))
+
     perf = compute_performance(trades)
-    risk = compute_risk(trades, []) if trades else {}
+    risk = compute_risk(trades, equity_curve_tuples) if trades else {}
     regime = compute_regime_breakdown(trades) if trades else {}
-    weaknesses = detect_weaknesses(trades) if trades else []
+    weaknesses_report = detect_weaknesses(trades, equity_curve_tuples) if trades else {}
+
+    structured_weaknesses: list[dict[str, Any]] = []
+    if isinstance(weaknesses_report, dict):
+        flags = weaknesses_report.get("flags", [])
+        sev = weaknesses_report.get("severity", "LOW")
+        rec = weaknesses_report.get("recommendation", "ACCEPT")
+        for flag in flags:
+            detail = f"Condition flagged: {flag}"
+            if "LOSING_REGIMES:" in flag:
+                reg_name = flag.split("LOSING_REGIMES:", 1)[1]
+                detail = f"Underperforms in {reg_name}"
+            structured_weaknesses.append({
+                "flag": flag,
+                "severity": sev,
+                "recommendation": rec,
+                "detail": detail,
+            })
 
     return {
         "strategy_id": strategy_id,
         "execution_mode": "BACKTEST/PAPER_LIVE/MANUAL_LIVE",
         "total_trades": len(trades),
-        "overall_metrics": perf,
+        "performance": _sanitize_json(perf),
+        "overall_metrics": _sanitize_json(perf),
+        "risk": _sanitize_json(risk),
         "risk_metrics": _sanitize_json(risk),
+        "equity_curve": equity_curve,
         "regime_breakdown": _sanitize_json(regime),
-        "weaknesses_detected": _sanitize_json(weaknesses),
+        "weaknesses": structured_weaknesses,
+        "weakness_report": _sanitize_json(weaknesses_report),
+        "weaknesses_detected": _sanitize_json(weaknesses_report.get("flags", []) if isinstance(weaknesses_report, dict) else []),
     }
+
+
+@app.get("/api/strategy/diagnostics")
+async def strategy_diagnostics(
+    strategy_id: str = Query("BASELINE_DEMO_V1"),
+) -> dict[str, Any]:
+    """Expose strategy diagnostics: equity curve, regime breakdown, weaknesses."""
+    return await evaluation(strategy_id=strategy_id)
 
 
 # --------------------------------------------------------------------------- #
@@ -620,7 +781,7 @@ async def research_trigger(payload: dict[str, Any]) -> dict[str, Any]:
     except Exception:
         df_features = None
 
-    loop = ResearchLoop()
+    loop = ResearchLoop(db_path=DB_PATH)
     result = loop.run(
         trades=trades,
         df_features=df_features,

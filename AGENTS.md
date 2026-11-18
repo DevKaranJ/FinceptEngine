@@ -57,6 +57,13 @@ No coder agent may declare its own work finished. Every completed task must pass
 - Every feature or modification gets its own commits within the phase branch.
 - Nothing is committed or pushed without explicit client approval. Your approval authorizes committing into the phase branch only; you review and manually merge each phase branch into `dev`. No auto-push to `dev`/`origin`.
 
+### Rule 7 — Autonomous Skill Discovery & Utilization (find-skills)
+- Whenever a task touches specialized domains (UI/UX design, dark-mode styling, data visualization, charting, accessibility, automated testing, performance optimization, deployment) or requires specialized domain knowledge, agents must not guess or expect the user to know the exact skill name.
+- Proactively discover candidate skills via `find-skills` or `npx -y skills find <domain>` (e.g., `npx -y skills find ui`, `npx -y skills find chart`).
+- Select the best matching skill by domain relevance, install count on `skills.sh`, and security audit ratings (Socket / Gen / Snyk).
+- Install the selected skill non-interactively with `npx -y skills add <owner/repo@skill> -y`.
+- Immediately inspect and put the installed skill's guidelines, design systems, and scripts into action for the task at hand.
+
 ## 4. Testing & Verification
 
 - Test framework: **pytest**. Run `pytest` from the repo root (once tests/ exists).

@@ -38,7 +38,10 @@ def rolling_zscore(series: pd.Series, window: int = 20) -> pd.Series:
         raise ValueError("rolling_zscore window must be >= 2")
     rolling_mean = series.rolling(window=window, min_periods=window).mean()
     rolling_std = series.rolling(window=window, min_periods=window).std(ddof=0)
-    return (series - rolling_mean) / rolling_std.replace(0, np.nan)
+    dev = series - rolling_mean
+    z = dev / rolling_std.replace(0, np.nan)
+    # Zero-variance flat window: price equals rolling_mean, deviation is 0.0, z-score is 0.0.
+    return z.mask((rolling_std == 0.0) & rolling_mean.notna(), 0.0)
 
 
 def hurst_exponent(series: pd.Series, window: int = 100) -> pd.Series:
@@ -104,7 +107,7 @@ def volatility_percentile(series: pd.Series, window: int = 100, lookback: int = 
     rolling_vol = returns.rolling(window=window, min_periods=window).std(ddof=0)
     # Percentile rank of current rolling_vol within past `lookback` values.
     pct = rolling_vol.rolling(window=lookback, min_periods=lookback).apply(
-        lambda x: float(np.nanpercentile(x[:-1], 100 * (np.sum(x[:-1] <= x[-1]) / max(len(x[:-1]), 1)))) if len(x) > 1 else np.nan,
+        lambda x: float(100.0 * (np.sum(x[:-1] <= x[-1]) / max(len(x[:-1]), 1))) if len(x) > 1 else np.nan,
         raw=True,
     )
     return pct

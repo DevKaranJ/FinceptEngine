@@ -15,7 +15,9 @@ historical bars in chronological order.
 from __future__ import annotations
 
 import json
+import random
 import sqlite3
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -60,37 +62,50 @@ class TradeLogger:
     ) -> str:
         """Insert a new OPEN trade record. Returns the ``trade_id``."""
         trade_id = trade_id or _new_trade_id()
-        conn = get_connection(db_path=self.db_path)
-        try:
-            conn.execute(
-                """
-                INSERT INTO trades_memory
-                    (trade_id, strategy_id, execution_mode, symbol, timeframe,
-                     direction, status, entry_time_utc, entry_price,
-                     stop_loss, target_1_price, target_2_price, position_size,
-                     regime_snapshot_json, active_signals_json, notes)
-                VALUES (?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    trade_id, strategy_id, execution_mode, symbol, timeframe,
-                    direction, entry_time_utc, entry_price,
-                    stop_loss, target_1_price, target_2_price, position_size,
-                    json.dumps(regime_snapshot or {}),
-                    json.dumps(list(active_signals or [])),
-                    notes,
-                ),
-            )
-            conn.commit()
-            log_activity(
-                "STRATEGY_ENGINE", "TRADE_OPENED",
-                f"{strategy_id} {direction} {symbol} @ {entry_price}",
-                {"trade_id": trade_id, "strategy_id": strategy_id,
-                 "direction": direction, "entry_price": entry_price},
-                db_path=self.db_path,
-            )
-            return trade_id
-        finally:
-            conn.close()
+        max_retries = 5
+        base_delay = 0.05
+        for attempt in range(max_retries):
+            conn = None
+            try:
+                conn = get_connection(db_path=self.db_path)
+                conn.execute(
+                    """
+                    INSERT INTO trades_memory
+                        (trade_id, strategy_id, execution_mode, symbol, timeframe,
+                         direction, status, entry_time_utc, entry_price,
+                         stop_loss, target_1_price, target_2_price, position_size,
+                         regime_snapshot_json, active_signals_json, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        trade_id, strategy_id, execution_mode, symbol, timeframe,
+                        direction, entry_time_utc, entry_price,
+                        stop_loss, target_1_price, target_2_price, position_size,
+                        json.dumps(regime_snapshot or {}),
+                        json.dumps(list(active_signals or [])),
+                        notes,
+                    ),
+                )
+                log_activity(
+                    "STRATEGY_ENGINE", "TRADE_OPENED",
+                    f"{strategy_id} {direction} {symbol} @ {entry_price}",
+                    {"trade_id": trade_id, "strategy_id": strategy_id,
+                     "direction": direction, "entry_price": entry_price},
+                    db_path=self.db_path,
+                    conn=conn,
+                )
+                conn.commit()
+                return trade_id
+            except sqlite3.IntegrityError:
+                raise
+            except sqlite3.OperationalError as exc:
+                if ("locked" in str(exc).lower() or "busy" in str(exc).lower()) and attempt < max_retries - 1:
+                    time.sleep(base_delay * (2 ** attempt) + random.uniform(0.01, 0.05))
+                    continue
+                raise
+            finally:
+                if conn is not None:
+                    conn.close()
 
     def update_mae_mfe(
         self,
@@ -210,6 +225,7 @@ class TradeLogger:
                  "net_pnl": net_pnl, "r_multiple": r_multiple,
                  "exit_reason": exit_reason},
                 db_path=self.db_path,
+                conn=conn,
             )
 
             return self._row_to_dict(conn.execute(
