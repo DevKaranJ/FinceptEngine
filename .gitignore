@@ -35,3 +35,15 @@ htmlcov/
 # Logs
 logs/
 *.log
+
+# Build / distribution artifacts
+FinceptEngine.egg-info/
+*.egg-info/
+dist/
+build/
+
+# OpenCode / agent work state (temporary, not source)
+.planning/
+
+# Untracked non-source archives: .whl binaries, graphify-out cache, PNG screenshots
+archive/untracked_artifacts/

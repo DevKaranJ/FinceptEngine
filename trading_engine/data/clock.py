@@ -6,12 +6,20 @@ Responsibilities (PRD Phase 1 / master_architecture Section 2):
   • Enforce session time filters and IST square-off cutoffs.
 
 All timestamps are UTC unless explicitly marked IST.
+
+⚠️ DEPRECATION NOTICE:
+  NSE Equities session methods (`is_nse_session_open`, `nse_next_session_open_utc`,
+  `nse_square_off_utc`) are out of scope for the Binance Spot + USDⓈ-M Futures
+  transformation. They are retained only so existing Phase 1 tests keep passing;
+  they are NOT part of the active Binance-only scope. New code must not use them.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
+
+import warnings
 
 from ..config import (
     CRYPTO_SESSION_UTC_END,
@@ -54,7 +62,18 @@ class MarketSession:
     # NSE (IST) helpers
     # ------------------------------------------------------------------ #
     def is_nse_session_open(self, ts_utc: datetime) -> bool:
-        """True if `ts_utc` falls within 09:15–15:30 IST on a Mon–Fri."""
+        """True if `ts_utc` falls within 09:15–15:30 IST on a Mon–Fri.
+
+        ⚠️ DEPRECATED — NSE Equities session (out of scope for Binance-only
+        transformation). Retained only so existing Phase 1 tests keep passing.
+        New code must not use this method.
+        """
+        warnings.warn(
+            "is_nse_session_open() is deprecated (NSE Equities out of scope; "
+            "Binance Spot + USDⓈ-M Futures only). Retained for Phase 1 tests.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         ts_ist = ts_utc.astimezone(IST)
         if ts_ist.weekday() not in self.nse_trading_days:
             return False
@@ -62,7 +81,19 @@ class MarketSession:
         return self.nse_start_ist <= t <= self.nse_end_ist
 
     def nse_next_session_open_utc(self, ts_utc: datetime) -> datetime:
-        """Next NSE open (09:15 IST Mon–Fri) on/after `ts_utc`."""
+        """Next NSE open (09:15 IST Mon–Fri) on/after `ts_utc`.
+
+        ⚠️ DEPRECATED — NSE Equities session (out of scope for Binance-only
+        transformation). Retained only so existing Phase 1 tests keep passing.
+        New code must not use this method.
+        """
+        warnings.warn(
+            "nse_next_session_open_utc() is deprecated (NSE Equities out of "
+            "scope; Binance Spot + USDⓈ-M Futures only). Retained for Phase 1 "
+            "tests.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         ts_utc = self._ensure_utc(ts_utc)
         candidate = ts_utc.astimezone(IST).replace(
             hour=self.nse_start_ist.hour,
@@ -78,7 +109,18 @@ class MarketSession:
         return candidate.astimezone(UTC)
 
     def nse_square_off_utc(self, ts_utc: datetime) -> datetime:
-        """NSE square-off boundary (15:30 IST) for the current trading day."""
+        """NSE square-off boundary (15:30 IST) for the current trading day.
+
+        ⚠️ DEPRECATED — NSE Equities session (out of scope for Binance-only
+        transformation). Retained only so existing Phase 1 tests keep passing.
+        New code must not use this method.
+        """
+        warnings.warn(
+            "nse_square_off_utc() is deprecated (NSE Equities out of scope; "
+            "Binance Spot + USDⓈ-M Futures only). Retained for Phase 1 tests.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         ts_utc = self._ensure_utc(ts_utc)
         soff = ts_utc.astimezone(IST).replace(
             hour=self.nse_end_ist.hour,

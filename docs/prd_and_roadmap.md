@@ -2,7 +2,13 @@
 
 **Project Name:** Self-Improving Multi-Paradigm Quantitative Trading Engine  
 **Document Version:** 1.0  
-**Status:** Active Blueprint  
+**Status:** SUPERSEDED — ARCHIVED (see `archive/documentation/prd_and_roadmap.md`)  
+**Archive Date:** 2026-11-24  
+**Reason:** Conflicts with Binance Spot + USDⓈ-M Futures-only scope; references NSE Equities and the 4-Agent AI Self-Improvement Research Loop, both out of scope.
+
+---
+
+> ⚠️ **DEPRECATED:** This document is retained for historical reference only. It is NOT part of the active Binance-only documentation set. Do not use for implementation decisions. See `archive/documentation/prd_and_roadmap.md` for the archived full text.
 
 ---
 

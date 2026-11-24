@@ -1,7 +1,8 @@
 # Database Schema, Data Contracts & API Specification
 
-**Project Name:** Self-Improving Multi-Paradigm Quantitative Trading Engine  
+**Project Name:** Binance Spot + USDⓈ-M Futures Trading Platform  
 **Database Engine:** SQLite 3 (`trading_engine.db` with `PRAGMA journal_mode=WAL;`)  
+**Scope:** Binance Spot & USDⓈ-M Futures only (top 10 crypto by rolling 24h quote volume, max 5 strategies)
 
 ---
 
@@ -10,11 +11,11 @@
 All persistent state is stored in `trading_engine.db` using Write-Ahead Logging (`WAL`) so concurrent live WebSocket writes and backtest/evaluation reads never block each other.
 
 ### Table 1: `ohlcv_bars` (Historical & Live Candle Store)
-Stores multi-timeframe candlestick data across Crypto and Equities.
+Stores multi-timeframe candlestick data for Binance Spot & USDⓈ-M Futures only.
 ```sql
 CREATE TABLE IF NOT EXISTS ohlcv_bars (
     symbol          TEXT NOT NULL,
-    market_type     TEXT NOT NULL, -- 'CRYPTO_SPOT', 'CRYPTO_PERP', 'NSE_EQUITY'
+    market_type     TEXT NOT NULL, -- 'CRYPTO_SPOT', 'CRYPTO_PERP'
     timeframe       TEXT NOT NULL, -- '1m', '5m', '15m', '1h', '1d'
     open_time_utc   TEXT NOT NULL, -- ISO-8601 UTC timestamp
     open            REAL NOT NULL,
@@ -65,7 +66,7 @@ CREATE TABLE IF NOT EXISTS trades_memory (
 ```
 
 ### Table 3: `strategy_registry` (Model & Strategy Version Control)
-Tracks baseline strategies (`V1`) and AI-generated candidate upgrades (`V2`, `V3`).
+Tracks baseline strategies (`V1`) and human-reviewed candidate upgrades (`V2`).
 ```sql
 CREATE TABLE IF NOT EXISTS strategy_registry (
     strategy_id         TEXT PRIMARY KEY, -- e.g., 'EMA_BREAKOUT_V2'
@@ -104,8 +105,8 @@ CREATE TABLE IF NOT EXISTS validation_reports (
 );
 ```
 
-### Table 5: `system_activity_log` (Live Engine & Agent Audit Trail)
-Powers the `RECENT ACTIVITY` timeline in the dashboard (`Data synced`, `Backtest completed`, `Weakness detected`, `V2 generated`, `Validation passed/failed`).
+### Table 5: `system_activity_log` (Live Engine Audit Trail)
+Powers the `RECENT ACTIVITY` timeline in the dashboard (`Data synced`, `Backtest completed`, `Validation passed/failed`, `Manual order ticket`).
 ```sql
 CREATE TABLE IF NOT EXISTS system_activity_log (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -148,7 +149,7 @@ Every strategy's `evaluate()` method must return either `None` (no trade) or thi
 ```
 
 ### Contract B: Evaluation Engine Weakness Report (`evaluation/analyzer.py`)
-Passed from the Evaluation Engine to the AI Research Agent:
+Passed from the Evaluation Engine to the Human Strategy Reviewer:
 ```json
 {
   "strategy_id": "EMA_BREAKOUT_V1",
@@ -184,11 +185,12 @@ Passed from the Evaluation Engine to the AI Research Agent:
 
 | Method & Route | Purpose |
 | :--- | :--- |
-| `WS /ws/live` | Streams real-time candle updates, footprint ladders, active paper positions, system status badges, and manual order tickets to the UI. |
-| `GET /api/system/status` | Returns engine status (`RUNNING`/`IDLE`), connected feeds, total strategies tested, approved count, uptime, and the `RECENT ACTIVITY` timeline. |
-| `GET /api/market/Snapshot` | Returns historical OHLCV + computed multi-paradigm indicator overlays (`EMA`, `VWAP`, `POC`, `PDH`/`PDL`, `FVG`, `TL`) for the active symbol/timeframe. |
+| `WS /ws/live` | Streams real-time Binance candle updates, active paper positions, system status badges, and manual order tickets to the UI. |
+| `GET /api/system/status` | Returns engine status (`RUNNING`/`IDLE`), connected Binance feeds, total strategies tested, approved count, uptime, and the `RECENT ACTIVITY` timeline. |
+| `GET /api/market/Snapshot` | Returns historical Binance OHLCV + computed indicator overlays (`EMA`, `VWAP`, `POC`, `PDH`/`PDL`, `FVG`, `TL`) for the active symbol/timeframe. |
 | `GET /api/trades/memory` | Returns paginated trade logs from `trades_memory` with `MAE`, `MFE`, fees, and regime snapshots. |
 | `POST /api/trades/manual` | Logs a human-executed trade from the 1-Click Manual Order Ticket into `trades_memory`. |
 | `GET /api/evaluation/{strategy_id}` | Runs `EvaluationEngine` on a strategy and returns Performance, Risk, Regime Breakdown, and detected weaknesses. |
-| `POST /api/research/trigger` | Triggers the 4-Agent AI Research Loop (`Research` $\rightarrow$ `Hypothesis` $\rightarrow$ `Coding` $\rightarrow$ `Review` $\rightarrow$ `Validation Gate`) for a target strategy. |
 | `GET /api/validation/reports` | Returns the V1 vs. V2 comparison scorecard, Walk-Forward curves, and Parameter Sensitivity Heatmap JSON for the UI. |
+
+> ⚠️ **Removed endpoint:** `POST /api/research/trigger` — previously triggered the 4-Agent AI Research Loop. Removed because autonomous AI research loops (ML/DL/RL/LLM multi-agent systems) conflict with the rule-based-only restriction. Source `agents/research_loop.py` archived at `archive/research_loop_archive/`.

@@ -40,8 +40,8 @@
 | 33 | Create `trading_engine/indicators/structure.py` — Family C indicators + tests | Backend/QA | Phase 2 | **VERIFIED** — PDH/PDL/PDC/ORB/Trendlines/FVG/Order Blocks/Liquidity Sweeps pass |
 | 34 | Create `trading_engine/indicators/orderflow.py` — Family D indicators + tests | Backend/QA | Phase 2 | **VERIFIED** — VWAP/RVOL/Volume Profile/CVD/Footprint/Iceberg pass |
 | 35 | Create `trading_engine/signals/{technical,statistical,structure,orderflow}_signals.py` — boolean signal wrappers | Backend/QA | Phase 2 | **VERIFIED** — all signal wrappers return correct True/False |
-| 36 | Create `trading_engine/tests/test_phase2_indicators_signals.py` — full Phase 2 suite | QA | Phase 2 | **VERIFIED** — **58/58 tests passed** (2026-11-09). HMA added: **61/61 tests passed**. |
-| 37 | Run `pytest trading_engine/tests/test_phase2_indicators_signals.py` — verify pass, STOP (Phase 2 hard stop gate) | QA + Reviewer | Phase 2 | **VERIFIED: 61/61 passed** |
+| 36 | Create `trading_engine/tests/test_phase2_indicators_signals.py` — full Phase 2 suite | QA | Phase 2 | **VERIFIED** — **64/64 tests passed** (61 original + 2 ZLA regression tests + 1 Antigravity C1 regression test `test_opening_range_no_pre_market_positional_leak`) |
+| 37 | Run `pytest trading_engine/tests/test_phase2_indicators_signals.py` — verify pass, STOP (Phase 2 hard stop gate) | QA + Reviewer | Phase 2 | **VERIFIED: 64/64 passed** (2026-11-24, after Antigravity C1 fix) |
 | 38 | Client approved Phase 2 hard stop gate; merged `phase2/indicators-signals` into `dev` and pushed to origin | Architect | Phase 2 | Merge commit `f2d8c45` on `dev`; PR #2 merged |
 | 39 | Create `strategies/base_strategy.py` — abstract BaseStrategy interface + Contract A signal dict | Backend/QA | Phase 3 | **VERIFIED** — test_base_strategy_build_signal_contract_a, test_base_strategy_target_2_defaults_to_target_1 pass |
 | 40 | Create `strategies/approved/ema_breakout_v1.py` — baseline V1 EMA breakout | Backend/QA | Phase 3 | **VERIFIED** — ATR expansion inline filter, EMA cross trigger, bullish trend + HMA bias, stop/R:R pass |
@@ -70,32 +70,21 @@
 | # | Task | Owner | Notes |
 |---|------|-------|-------|
 | — | Phase 6 complete, committed (f01f2ca) & pushed to `origin/phase6/fastapi-backend-ui`. **NOT merged to `dev`** — awaiting explicit client approval before merge (Rule 6). | — | 9 endpoints + WS smoke-tested; pytest suite 9/9 passed |
+| — | Phase C planning & research — **COMPLETED** (this turn) | Architect | All deliverables complete; peer review & sign-off recorded in `PEER_REVIEW_LOG.md`; ready for client presentation |
 
 ---
 
-## [ ] REMAINING BACKLOG (BY PHASE)
+## [x] COMPLETED & VERIFIED (Phase C)
 
-### Phase 4: Backtester, Evaluation Engine & Validation Gatekeeper
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
-| 4.1 | Create `validation/backtester.py` — event-driven historical backtest engine | Backend | Phase 4 | **VERIFIED** — done; test_backtester_* (4/4) pass |
-| 4.2 | Create `evaluation/analyzer.py` — Performance/Risk/Regime breakdown + Weakness JSON | Backend | Phase 4 | **VERIFIED** — done; test_compute_performance/detect_weaknesses (7/7) pass |
-| 4.3 | Create `validation/gatekeeper.py` — OOS split, Walk-Forward, Parameter Heatmap, Approve/Reject | Backend | Phase 4 | **VERIFIED** — done; gatekeeper tests pass |
-| 4.4 | Create `tests/test_phase4_eval_validation.py` — full Phase 4 suite | QA | Phase 4 | **VERIFIED** — done; 14/14 tests pass |
-| 4.5 | Run pytest — verify pass, then STOP (Phase 4 hard stop gate) | QA + Reviewer | Phase 4 | **VERIFIED: 14/14 passed** — STOPPED awaiting client approval |
-
-### Phase 5: The 4 AI Research Agents (Self-Improvement Loop)
-| # | Task | Owner | Phase | Notes |
-|---|------|-------|-------|-------|
-| — | All Phase 5 tasks complete & verified (11/11) — moved to COMPLETED & VERIFIED above | — | Phase 5 | STOPPED at Phase 5 hard stop gate awaiting client approval |
-
-### Phase 6: FastAPI Backend & Unified Dark-Mode Terminal UI
-| # | Task | Owner | Phase | Notes |
-|---|------|-------|-------|-------|
-| 6.1 | Create `backend/server.py` — FastAPI REST + WebSocket hub | Backend | Phase 6 | **VERIFIED** — `http://127.0.0.1:8765`; 9 routes registered incl. WS `/ws/live` |
-| 6.2 | Create `execution/alert_dispatcher.py` — 1-Click Manual Order Ticket + audio/Telegram alerts | Backend | Phase 6 | Manual ticket exposed via `POST /api/trades/manual` + System Monitor UI form (server.py + system_monitor_ui.js) |
-| 6.3 | Create `frontend/index.html`, `frontend/css/styles.css`, `frontend/js/*.js` | Frontend | Phase 6 | **VERIFIED** — dark-mode terminal shell, Lightweight Charts v5.3.0 vendored, all endpoints smoke-tested |
-| 6.4 | Full end-to-end launch verification in browser, zero console errors | Frontend + QA | Phase 6 | **VERIFIED** — all endpoints smoke-tested OK; `pytest trading_engine/tests/test_phase6_backend_ui.py` **9/9 passed** |
+| C.1 | Create `docs/REPOSITORY_RESEARCH.md` — findings from local codebase vs 14 research areas | Architect | Phase C | **VERIFIED** — 12/14 areas have complete local implementations; blocker KI-010 (13 GitHub URLs) open |
+| C.2 | Create `docs/REBUILD_RECOMMENDATION.md` — rebuild vs in-place + manifest choice | Architect + QA + Reviewer | Phase C | **VERIFIED** — in-place evolution recommended; `pyproject.toml` + `requirements.txt` both |
+| C.3 | Create `docs/ARCHITECTURE_DECISIONS.md` — ADRs for Binance-only transformation | Architect | Phase C | **VERIFIED** — ADR-001 through ADR-008 |
+| C.4 | Revalidate zero-look-ahead claim & risk-management concerns | QA + Reviewer | Phase C | **VERIFIED** — PASS with 1 Medium finding (ZLA-001 `session_volume_profile()`) |
+| C.5 | Update `PROJECT_AUDIT.md`, `KNOWN_ISSUES.md` to reflect Phase B completion | Architect | Phase C | **VERIFIED** — KI-001–KI-006 resolved; KI-007–010 open |
+| C.6 | Add `CHANGELOG.md` Phase C entry | Architect | Phase C | **VERIFIED** — [v0.1.11] entry added |
+| C.7 | Peer review & sign-off (Rule 5) — record in `PEER_REVIEW_LOG.md` | Reviewer | Phase C | **VERIFIED** — QA + Reviewer PASSED; ready for client presentation |
 
 ---
 
@@ -103,9 +92,8 @@
 
 | Date | Item | Reason | Owner |
 |------|------|--------|-------|
-| 2026-11-08 | Root-level `AGENTS.md` missing — created new one embedding the 5 mandatory governance rules | Governance requirement from Master Prompt Step 2 | Architect + Reviewer |
-| 2026-11-08 | `readme.md` exists at root (lowercase) but no `README.md` — no duplicate created | Project has lowercase readme; kept as-is | Architect |
-| 2026-11-08 | `DEVELOPMENT_PLAN_AND_TODO.md`, `CHANGELOG.md`, `PEER_REVIEW_LOG.md` created as new governance artifacts | Governance requirement from Master Prompt Step 3 | Architect + QA + Reviewer |
+| 2026-11-24 | Phase B documentation cleanup complete — `prd_and_roadmap.md` archived; `master_architecture.md` → Binance-only; `database_and_data_contracts.md` → Binance-only; `server.py` line 301 NSE_EQUITY→CRYPTO_SPOT; `research_loop` import removed from `server.py`; NSE constants in `config.py`/`clock.py` marked DEPRECATED; 566 candidate files + `test_phase5_research_agents.py` + `research_loop.py` + `.whl` + `graphify-out/` + `UII/` archived (not deleted) | Phase B transformation work | Architect |
+| 2026-11-24 | `CHANGELOG.md` entry [v0.1.10] added | Phase B timestamped entry | Architect |
 | 2026-11-09 | **Phase 1 Python logic written & verified**: `config.py`, `requirements.txt`, `data/clock.py`, `data/feeds/binance_ws.py`, `memory/db.py`, `tests/test_phase1_data_db.py` | PRD Phase 1 deliverables complete | Backend + QA |
 | 2026-11-09 | **Environment constraint**: PyPI unreachable (read timeout), no root for apt, no pip cache — `pytest`/`pandas`/`fastapi`/`scipy` cannot be installed. Phase 1 verified via inline Python execution instead of `pytest`. | Network restriction in dev container | QA |
 
@@ -145,7 +133,7 @@
 ### Phase 5: The 4 AI Research Agents (Self-Improvement Loop)
 | # | Task | Owner | Phase | Notes |
 |---|------|-------|-------|-------|
-| — | All Phase 5 tasks complete & verified (11/11) — moved to COMPLETED & VERIFIED above | — | Phase 5 | STOPPED at Phase 5 hard stop gate awaiting client approval |
+| — | All Phase 5 tasks complete & verified (11/11) — `agents/research_loop.py` + `test_phase5_research_agents.py` archived to `archive/research_loop_archive/` & `archive/research_artifacts/` | — | Phase 5 | EXCLUDED from active V1 workflow — conflicts with rule-based-only restriction (no multi-agent/autonomous strategy generation). Source preserved (not deleted). |
 
 ### Phase 6: FastAPI Backend & Unified Dark-Mode Terminal UI
 | # | Task | Owner | Phase | Notes |
@@ -170,6 +158,14 @@
 | 2026-11-09 | Added HMA indicator + signal wrappers + tests to `technical.py`, `technical_signals.py`, `test_phase2_indicators_signals.py` | Demonstrated contribution guide in practice; **61/61 tests passed** | Backend + QA |
 | 2026-11-11 | **Phase 6 complete**: `backend/server.py` (9 routes + WS `/ws/live`), full frontend (`index.html`, `css/styles.css`, `js/{main,chart_engine,footprint_ui,lab_evaluation_ui,system_monitor_ui}.js`, vendored Lightweight Charts v5.3.0), `tests/test_phase6_backend_ui.py` | All endpoints smoke-tested OK; pytest suite **9/9 passed**; Lightweight Charts vendored locally from npm (unpkg CDN 404s) | Backend + Frontend + QA |
 | 2026-11-11 | Fixed Phase 6 test suite: corrected `ROOT` path (3 levels up from `tests/`), converted `@pytest.mark.asyncio` tests to sync `asyncio.run()` (no `pytest-asyncio` available offline), added `count: 0` to empty snapshot case | `pytest-asyncio` not installed; PyPI unreachable | QA |
+
+---
+
+| Date | Item | Reason | Owner |
+|------|------|--------|-------|
+| 2026-11-24 | Phase A codebase audit complete — `PROJECT_AUDIT.md` + `KNOWN_ISSUES.md` created | Identify all deviations from intended Binance-only scope; blocker: 13 GitHub repo URLs not found | Architect |
+| 2026-11-24 | Phase B documentation cleanup backlog added | Inventory docs, classify KEEP/UPDATE/ARCHIVE/REMOVE, archive before removing | Architect |
+| 2026-11-24 | ~300+ `v2_candidate_hyp_*.py` candidate files + `*.whl` + `UII/` + `graphify-out/` untracked artifacts | Working-tree hygiene; archive-before-remove rule applies | Architect |
 
 ---
 

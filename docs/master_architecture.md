@@ -1,34 +1,43 @@
-# MASTER ARCHITECTURE: Self-Improving Multi-Paradigm Quantitative Trading Engine
+# MASTER ARCHITECTURE: Binance Spot + USDⓈ-M Futures Trading Platform
 
-**Subtitle:** A Modular, Strategy-Agnostic System That Researches, Tests, Validates, and Improves Strategies Across Technical Analysis, Quantitative Research Papers, Price Action, and Orderflow.
+**Subtitle:** A Modular, Rule-Based Crypto Trading Research, Backtesting, Paper-Trading, and Live-Signal Platform (Binance Spot + USDⓈ-M Futures Only).
+
+**Status:** Active — Binance-only scope (archived: NSE Equities, 4-Agent AI Self-Improvement Loop)
+**Archive Date:** 2026-11-24
 
 ---
 
 ## 1. Executive Architecture Overview & Core Philosophy
 
-This master specification defines a **100% Strategy-Agnostic Self-Improving Trading Engine**. It does **not** revolve around a single trading style: whether a strategy is built from classical indicators (EMA, RSI, ATR, Bollinger Bands), academic research papers (statistical mean-reversion, volatility breakouts), price structure (Trendlines, Pivots, FVG), or orderflow (VWAP, Volume Profile, Footprint), every indicator and signal is treated as an interchangeable **Lego Block**.
+This master specification defines a **Modular, Rule-Based Trading Platform** focused exclusively on **Binance Spot and USDⓈ-M Futures**. It scans the top 10 eligible crypto assets by rolling 24-hour quote volume and supports a maximum of 5 independent, deterministic, rule-based strategies.
+
+All strategies are built from interchangeable **Lego Blocks** (`Indicators` → `Signals` → `Strategies` → `Risk`). Strategies are rule-based only — no ML/DL/RL/LLM trading decisions, no multi-agent systems, no autonomous strategy generation, no self-improving strategy loops.
 
 ### Core Design Principles
-1. **Strategy-Agnostic Lego-Block Decoupling (`Indicators` $\rightarrow$ `Signals` $\rightarrow$ `Strategies` $\rightarrow$ `Risk`)**:
-   - **Indicators** compute pure math across any paradigm (Technical, Statistical, Structural, or Orderflow).
+1. **Strategy-Agnostic Lego-Block Decoupling (`Indicators` → `Signals` → `Strategies` → `Risk`)**:
+   - **Indicators** compute pure math across any crypto trading paradigm (Technical TA, Price Structure, Orderflow/Volume).
    - **Signals** convert indicator outputs into reusable `True`/`False` triggers and filters.
-   - **Strategies** combine any trigger and filters into versioned recipes (`V1`, `V2`, `V3`).
+   - **Strategies** combine any trigger and filters into versioned, human-defined recipes (`V1` baseline strategies only; `V2` candidates require human review and approval).
    - **Risk** enforces universal position sizing, stop-loss rules, and daily circuit breakers.
 2. **Paper Trade First & 100% Manual Real Execution**:
-   - Candidate strategies (`V1`, `V2`, `V3`) are tested in historical backtests, verified in live **Paper Execution Mode**, and—once promoted—power the **Live Manual Order Ticket** so the human trader always executes real broker orders manually.
-3. **Never Let AI Approve Its Own Strategy**:
-   - The AI Research Agents can propose and code new candidate versions (`V2`) from any indicator family, but **promotion is strictly gated by an independent mathematical Validation Engine** (Out-of-Sample, Walk-Forward, Parameter Sensitivity Heatmap, and Slippage/Commission stress tests). If `V2` fails any check, it is rejected and `V1` remains the active baseline.
+   - Strategies are tested in historical backtests, verified in live **Paper Execution Mode**, and—once human-approved—power the **Live Manual Order Ticket** so the human trader always executes real broker orders manually.
+   - No automatic live order execution is implemented.
+3. **Rule-Based Only**:
+   - No ML/DL/RL/LLM trading decisions.
+   - No multi-agent systems or autonomous research loops.
+   - No sentiment/news prediction.
+   - Strategies are explicitly defined, reviewed, tested, and approved by a human.
 
 ```
 +-----------------------------------------------------------------------------------+
-|                        THE COMPLETE SELF-IMPROVING ENGINE FLOW                    |
+|                        BINANCE SPOT + USDⓈ-M FUTURES TRADING FLOW                 |
 +-----------------------------------------------------------------------------------+
 |                                                                                   |
-|  [1. MARKET DATA & FEATURE STORE] (Live + Historical OHLCV, Ticks, On-Chain/News) |
+|  [1. MARKET DATA & FEATURE STORE] (Binance Spot + USDⓈ-M Futures OHLCV, Ticks)   |
 |                 |                                                                 |
 |                 v                                                                 |
 |  [2. MULTI-PARADIGM LEGO STRATEGY ENGINE]                                         |
-|      (Technical TA | Quant/Stat Papers | Price Structure | Orderflow + Risk)      |
+|      (Technical TA | Price Structure | Orderflow + Risk)                        |
 |                 |                                                                 |
 |                 v                                                                 |
 |  [3. TRADE MEMORY & PAPER SIMULATOR] (Logs Entry, Exit, Slippage, Fee, MAE, MFE)  |
@@ -37,15 +46,10 @@ This master specification defines a **100% Strategy-Agnostic Self-Improving Trad
 |  [4. EVALUATION ENGINE] (Performance, Risk/VaR, Regime Breakdown, Failure Root)   |
 |                 |                                                                 |
 |                 v                                                                 |
-|  [5. AI RESEARCH AGENTS] (Research -> Hypothesis -> Coding V2 -> Code Review)     |
+|  [5. HUMAN REVIEW & VALIDATION GATE] (OOS, Walk-Forward, Heatmap, Cost Stress)   |
 |                 |                                                                 |
 |                 v                                                                 |
-|  [6. DETERMINISTIC VALIDATION GATE] (In-Sample -> OOS -> Walk-Forward -> Heatmap) |
-|         |                                               |                         |
-|    (PASS: Promote V2)                              (FAIL: Reject V2)              |
-|         |                                               |                         |
-|         v                                               +---> Keep V1 Active &    |
-|  [7. PAPER DEPLOYMENT & LIVE MANUAL ORDER TICKET]             Loop Back to Step 5 |
+|  [6. PAPER DEPLOYMENT & LIVE MANUAL ORDER TICKET] (Human executes manually)      |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -58,8 +62,8 @@ Ingests live streaming market data and historical archives, normalizes timestamp
 
 | Sub-Module | Responsibilities & Data Streams | Supported Markets & Libraries |
 | :--- | :--- | :--- |
-| **Data Sources (`data/feeds/`)** | • **Live Streams**: 1m/5m/15m/1h/1d OHLCV klines, tick/aggTrade streams, Order Book Depth, Perpetual Funding Rates, Open Interest.<br>• **Historical Backfill**: REST API & CSV downloader for multi-year OHLCV and tick history.<br>• **Optional Alternative Data**: News/Events sentiment, macro calendar, and on-chain metrics. | • **Phase 1 Focus (Crypto 24/7)**: Binance & Bybit Public WebSockets & REST APIs ($0 cost, top 15–25 liquid pairs).<br>• **Phase 2 Expansion (India NSE)**: Dhan / Fyers / Angel One read-only feeds (top 150 F&O intraday stocks). |
-| **Clock & Session Manager (`data/clock.py`)** | • Manages market session resets (`00:00 UTC` for Crypto 24/7; `09:15–15:30 IST` for NSE Intraday).<br>• Enforces session time filters and square-off cutoffs. | Python `zoneinfo` / `datetime` UTC & IST synchronization. |
+| **Data Sources (`data/feeds/`)** | • **Live Streams**: 1m/5m/15m/1h/1d OHLCV klines, tick/aggTrade streams, Order Book Depth, Perpetual Funding Rates, Open Interest.<br>• **Historical Backfill**: REST API & CSV downloader for multi-year OHLCV and tick history. | • **Binance Spot & USDⓈ-M Futures Public WebSockets & REST APIs** (top 10 eligible crypto by rolling 24-hour quote volume, max 5 strategies). |
+| **Clock & Session Manager (`data/clock.py`)** | • Manages market session resets (`00:00 UTC` for Crypto 24/7).<br>• Enforces session time filters for 24/7 crypto trading. | Python `zoneinfo` / `datetime` UTC synchronization. |
 | **Family A: Classical Technical Indicators (`indicators/technical.py`)** | • Standard trend, momentum, and volatility indicators: EMA, SMA, RSI, MACD, ATR, Bollinger Bands, Supertrend, ADX, Stochastic, Donchian Channels, Daily Fibonacci & Classic Pivots. | `pandas-ta`, `numpy`, `pandas`. |
 | **Family B: Quantitative & Research-Paper Models (`indicators/statistical.py`)** | • Mathematical & statistical features from academic/online papers: Rolling Z-Score, Hurst Exponent, Linear Regression Slope, Realized Volatility Percentile, Autocorrelation, Keltner Squeeze, and Cross-Asset Relative Strength (`RS`). | `numpy`, `scipy.stats`, `pandas`. |
 | **Family C: Price Action & Market Structure (`indicators/structure.py`)** | • Geometric and structural price levels: Prior Day High/Low/Close (`PDH`, `PDL`, `PDC`), Opening Range (`ORH`, `ORL`), 3-Touch Dynamic Trendlines (`TL`), Fair Value Gaps (`FVG`), Order Blocks (`OB`), and Liquidity Sweeps. | Custom vectorized `numpy`/`pandas` modules. |
@@ -69,7 +73,7 @@ Ingests live streaming market data and historical archives, normalizes timestamp
 ---
 
 ### Layer 2: Modular Strategy Engine & Paper Execution Simulator (`signals/`, `strategies/`, `risk/`, `execution/`)
-Allows you (or the AI Research Agents) to build pure TA strategies, pure Quant/Paper strategies, pure Orderflow strategies, or hybrid combinations using the exact same pipeline.
+Allows human traders to build pure TA strategies, pure Price Structure strategies, pure Orderflow strategies, or hybrid combinations using the exact same pipeline. All strategies are human-defined, human-reviewed, and human-approved.
 
 | Sub-Module | Role in the Pipeline | Examples Across Different Strategy Styles |
 | :--- | :--- | :--- |
@@ -131,37 +135,20 @@ Analyzes trade logs from Layer 3 not merely to calculate returns, but to **autom
 
 ---
 
-### Layer 5: The 4-Role AI Research Agent Loop (`agents/research_loop.py`)
-Triggered on schedule or on demand, the 4 specialized AI agents convert the Evaluation Engine's weakness report into a testable candidate strategy (`V2`) by drawing from **any** of the 4 indicator families (`Technical`, `Statistical`, `Structural`, or `Orderflow`).
+### Layer 5: Human Strategy Review & Validation Gate (`validation/`, `evaluation/`)
+Strategies are human-defined and human-reviewed. The independent **Validation Gatekeeper** runs four deterministic tests (Out-of-Sample, Walk-Forward, Parameter Sensitivity Heatmap, Cost Stress) before any candidate strategy can be promoted to Paper Execution. **AI never self-approves a strategy.**
 
-| Agent Role | Input Received | Action Taken | Output Produced |
-| :--- | :--- | :--- | :--- |
-| **1. Research Agent** | Evaluation Engine JSON + Trade Memory (`MAE`/`MFE` & Regime logs). | Investigates the exact losing trades in the flagged regime and isolates the root cause of failure. | Root-Cause Diagnostic Brief. |
-| **2. Hypothesis Agent** | Root-Cause Diagnostic Brief + Full Catalog of `indicators/` and `signals/` (TA, Quant, Structure, Orderflow). | Formulates a concrete, testable improvement hypothesis (e.g., *"Add `atr_volatility_filter` to `EMA_BREAKOUT_V1`"* or *"Combine `Orderflow` with `Volume Profile POC`"*). | Structured Hypothesis Spec (`V1` $\rightarrow$ `V2` diff plan). |
-| **3. Coding Agent** | Hypothesis Spec + `V1` source code. | Writes the new candidate strategy file `strategies/candidates/EMA_BREAKOUT_V2.py` without modifying `V1`. | Executable Python strategy candidate `V2`. |
-| **4. Review Agent** | `V2` source code + System Risk Rules. | Audits the code for syntax safety, **zero look-ahead bias**, and strict compliance with `risk/` rules. | Approved Candidate `V2` ready for Layer 6 Validation. |
-
----
-
-### Layer 6: Independent Validation & Robustness Gate (`validation/gatekeeper.py`)
-**Rule: Never let AI approve its own strategy.** Every candidate strategy (`V2`) generated by the AI Research Agents—or written manually from an online research paper—must pass four independent, deterministic mathematical tests before it is allowed into Paper Execution:
-
-| Validation Stage | What It Tests | Pass / Fail Promotion Criteria |
+| Review Stage | What It Tests | Pass / Fail Promotion Criteria |
 | :--- | :--- | :--- |
-| **1. In-Sample vs. Out-of-Sample (OOS) Split** | Trains/tunes on the first $70\%$ of historical data and tests blindly on the unseen final $30\%$ Out-of-Sample window. | **PASS** if OOS Profit Factor $\ge 1.25$, OOS Expectancy $> 0.15R$, and OOS Win Rate degrades by no more than $15\%$ relative to In-Sample. |
-| **2. Walk-Forward Analysis (WFA)** | Rolling anchored or sliding windows (e.g., Train $\rightarrow$ Validate) across the historical dataset. | **PASS** if at least $70\%$ of Walk-Forward windows are net profitable after fees and no single window breaches Max Drawdown limits. |
-| **3. Parameter Sensitivity Heatmap** | Tests a $5 \times 5$ grid of neighboring parameter values (e.g., `ATR Multiplier 1.0–3.0` $\times$ `EMA Length 10–60`) to detect curve-fitting cliffs. | **PASS** if $\ge 80\%$ of neighboring parameter combinations remain profitable (smooth plateau, not an isolated lucky spike). |
-| **4. Execution Realism Stress Test** | Re-runs the backtest with $1.5\times$ normal slippage and full taker commissions. | **PASS** if Net Profit Factor remains $> 1.15$ under stressed execution costs. |
+| **1. Out-of-Sample (OOS) Split** | First 70% In-Sample, final 30% unseen Out-of-Sample. | OOS Profit Factor ≥ 1.25, Expectancy > baseline, MaxDD ≤ baseline. |
+| **2. Walk-Forward Analysis (WFA)** | K = 5 rolling chronological windows (Train → Test). | ≥ 4 of 5 windows net positive (E_R > 0). |
+| **3. Parameter Sensitivity Heatmap** | 5×5 grid perturbing top 2 parameters by ±20%/±10%/0. | ≥ 20 of 25 cells PF > 1.10. |
+| **4. Execution Cost Stress** | OOS re-run with 1.5× slippage and full taker commissions. | Stressed PF ≥ 1.15 and Expectancy ≥ +0.12R. |
 
-#### The Promotion Decision (`Approve` vs. `Reject`)
-- **If ANY test FAILS (`FINAL STATUS: REJECTED`)**:
-  - `V2` is archived in the database with its failure scorecard.
-  - **`V1` remains the active strategy untouched.**
-  - The failure report (e.g., *"Parameter Stability: FAIL"*) is fed back to the Research Agent for the next iteration.
-- **If ALL 4 tests PASS (`FINAL STATUS: APPROVED`)**:
-  - `V2` is promoted to `strategies/approved/`, registered in the **Strategy & Model Registry**, and deployed to **Live Paper Execution** (and the Manual Order Ticket).
+**Decision Rule:** All 4 must PASS for promotion. Any failure → REJECTED, V1 baseline remains active. Human trader reviews results before any manual deployment.
 
----
+### Layer 6: FastAPI Backend & Live Signal Terminal (`backend/server.py`, `frontend/`)
+Serves the Binance Spot + USDⓈ-M Futures trading platform via FastAPI REST + WebSocket hub at `http://127.0.0.1:8765`. Provides live charts, paper positions, validation reports, and 1-Click Manual Order Tickets for human execution.
 
 ## 3. Unified Folder Structure of the Project
 
@@ -172,11 +159,10 @@ trading_engine/
 ├── requirements.txt                 # FastAPI, uvicorn, pandas, numpy, pandas-ta, scipy, websockets, pytest
 │
 ├── data/                            # LAYER 1: MARKET DATA & FEATURE STORE
-│   ├── clock.py                     # Session manager (UTC 24/7 Crypto & IST NSE hours)
+│   ├── clock.py                     # Session manager (UTC 24/7 Crypto only)
 │   ├── feature_store.py             # SQLite + Parquet feature caching (zero look-ahead)
 │   └── feeds/
-│       ├── binance_ws.py            # Live 24/7 Crypto Spot & USDT-M Futures WebSocket + REST backfill
-│       └── nse_broker_ws.py         # (Phase 2) NSE Intraday F&O WebSocket connector
+│       └── binance_ws.py            # Live 24/7 Crypto Spot & USDⓈ-M Futures WebSocket + REST backfill
 │
 ├── indicators/                      # LAYER 1B: MULTI-PARADIGM PURE MATH LEGO BLOCKS
 │   ├── technical.py                 # Family A: RSI, EMA, SMA, ATR, Bollinger, MACD, Supertrend, Pivots
@@ -190,10 +176,10 @@ trading_engine/
 │   ├── structure_signals.py         # orb_breakout, tl_3rd_touch, fvg_retest, key_level_sweep
 │   └── orderflow_signals.py         # above_vwap, at_poc_filter, footprint_300_imbalance, rvol_gate
 │
-├── strategies/                      # LAYER 2B: VERSIONED STRATEGY RECIPES (ANY PARADIGM)
+├── strategies/                      # LAYER 2B: VERSIONED STRATEGY RECIPES (HUMAN-DEFINED)
 │   ├── base_strategy.py             # Abstract interface enforcing standard signal + risk output
 │   ├── approved/                    # Active validated strategies (e.g., ema_breakout_v1.py, vwap_fvg_v1.py)
-│   └── candidates/                  # AI-generated or research-paper candidates awaiting validation (v2.py)
+│   └── candidates/                  # Research candidate strategies (archived; not part of active V1 workflow)
 │
 ├── risk/                            # LAYER 2C: UNIVERSAL RISK & SIZING GOVERNANCE
 │   └── risk_manager.py              # Position sizing, ATR stop buffer, slippage pad, daily circuit breaker
@@ -209,14 +195,14 @@ trading_engine/
 ├── evaluation/                      # LAYER 4: EVALUATION & WEAKNESS DETECTION ENGINE
 │   └── analyzer.py                  # Computes Return/Risk/Sharpe, MAE/MFE efficiency & Regime failures
 │
-├── agents/                          # LAYER 5: IN-APP AI SELF-IMPROVEMENT AGENTS
-│   └── research_loop.py             # Research -> Hypothesis -> Coding -> Review pipeline (Gemini/OpenRouter)
+├── agents/                          # REMOVED: AI self-improvement agents layer (rule-based only)
+│   └── research_loop.py             # Excluded per rule-based-only restriction; source archived at archive/research_loop_archive/
 │
-├── validation/                      # LAYER 6: INDEPENDENT ROBUSTNESS & APPROVAL GATE
-│   ├── backtester.py                # Fast vectorized & event-driven historical backtest engine
+├── validation/                      # LAYER 5: HUMAN REVIEW & VALIDATION GATE
+│   ├── backtester.py                # Event-driven historical backtest engine
 │   └── gatekeeper.py                # OOS split, Walk-Forward Analysis, Parameter Heatmap & Approve/Reject
 │
-├── backend/                         # FASTAPI SERVER & WEBSOCKET HUB
+├── backend/                         # LAYER 6: FASTAPI SERVER & WEBSOCKET HUB
 │   └── server.py                    # REST endpoints + real-time WebSocket stream to Frontend UI
 │
 ├── frontend/                        # DARK-MODE INSTITUTIONAL TERMINAL UI
@@ -227,7 +213,7 @@ trading_engine/
 │       ├── chart_engine.js          # TradingView Lightweight Charts (unlimited TA/Structure/Orderflow layers)
 │       ├── footprint_ui.js          # Optional Footprint & Order Book Depth inspection panel
 │       ├── lab_evaluation_ui.js     # V1 vs V2 comparison charts, Parameter Heatmap & WFA viewer
-│       └── system_monitor_ui.js     # System Status, Recent Activity log, Agent status & Paper PnL
+│       └── system_monitor_ui.js     # System Status, Recent Activity log, Paper PnL
 │
 └── tests/                           # DETERMINISTIC PYTEST VERIFICATION SUITE
     ├── test_indicators.py
@@ -245,5 +231,5 @@ trading_engine/
 | **Phase 2: Multi-Paradigm Lego Indicators & Signals** | Build all 4 indicator families (`technical.py`, `statistical.py`, `structure.py`, `orderflow.py`) and corresponding reusable boolean conditions in `signals/`. | `pytest` verifies exact math across TA (RSI, EMA, ATR, Pivots), Quant/Stat, Structure (TL, FVG), and Orderflow (VWAP, POC, Footprint). **STOP.** |
 | **Phase 3: Strategy Builder (`V1`), Risk Manager & Paper Simulator** | Build `strategies/base_strategy.py`, baseline strategies (e.g., `EMA_BREAKOUT_V1` and `VWAP_FVG_V1`), `risk/risk_manager.py`, and `execution/paper_simulator.py` (logging `MAE`, `MFE`, slippage, and regime snapshots). | `pytest` runs a simulated trade lifecycle and verifies `MAE`/`MFE` and net PnL are recorded accurately in `trades_memory`. **STOP.** |
 | **Phase 4: Backtester, Evaluation Engine & Validation Gatekeeper** | Build `validation/backtester.py`, `evaluation/analyzer.py` (regime weakness detector), and `validation/gatekeeper.py` (OOS split, Walk-Forward, Parameter Sensitivity Heatmap, and Approve/Reject logic). | `pytest` runs `V1` through the backtester, outputs a Regime Weakness JSON, and runs the 4-stage Validation Gate. **STOP.** |
-| **Phase 5: The 4 AI Research Agents (Self-Improvement Loop)** | Build `agents/research_loop.py` (`Research` $\rightarrow$ `Hypothesis` $\rightarrow$ `Coding V2` $\rightarrow$ `Review`) wired to `evaluation/analyzer.py` and `validation/gatekeeper.py`. | End-to-end test confirms the agents read a weakness report, generate `V2` in `strategies/candidates/`, and submit `V2` to the Validation Gate without touching `V1`. **STOP.** |
-| **Phase 6: FastAPI Backend & Unified Dark-Mode Terminal UI** | Build `backend/server.py` and `frontend/` (TradingView Lightweight Charts + Strategy Lab V1 vs V2 comparison + Parameter Heatmap + System Status Monitor). | Browser opens `http://127.0.0.1:8765` displaying live charts, paper trades, and the Self-Improvement Lab tabs. **COMPLETE.** |
+| **Phase 5: Human Strategy Review & Validation Gate** | Build `validation/gatekeeper.py` 4-stage gate (OOS split, Walk-Forward, Parameter Sensitivity Heatmap, Cost Stress). V1 baseline strategies reviewed/approved by human trader only — no AI self-improvement loop. | `pytest` runs `V1` through gatekeeper, confirms any `V2` candidate is rejected by default unless human-reviewed and 4-stage validated. **STOP.** |
+| **Phase 6: FastAPI Backend & Unified Dark-Mode Terminal UI** | Build `backend/server.py` and `frontend/` (TradingView Lightweight Charts, Strategy Lab, Parameter Heatmap, WFA viewer, System Status Monitor, 1-Click Manual Order Ticket). | Browser opens `http://127.0.0.1:8765` displaying live charts, paper trades, validation reports, and manual order tickets. **COMPLETE.** |

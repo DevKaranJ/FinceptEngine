@@ -190,8 +190,10 @@ def session_volume_profile(
       • VAH = highest price of the value area (top ``value_area_pct`` of volume).
       • VAL = lowest price of the value area.
 
-    Forward-filled within the session so each bar sees the current session's
-    profile computed from past bars only.
+    Zero-look-ahead: bar ``t`` sees only bars ``<= t`` within its session.
+    The profile is computed incrementally (expanding within-session window) so
+    early-session bars never reflect future-in-day price/volume. Each bar's
+    POC/VAH/VAL is derived exclusively from session-start through that bar.
     """
     if not (0 < value_area_pct < 1):
         raise ValueError("value_area_pct must be between 0 and 1")
@@ -210,27 +212,21 @@ def session_volume_profile(
     vah = pd.Series(np.full(n, np.nan, dtype=float), index=df.index)
     val = pd.Series(np.full(n, np.nan, dtype=float), index=df.index)
 
-    # Bin size = 1% of typical price range (adaptive).
-    for date, group in df.groupby("date"):
-        idx = group.index
-        tp = typical_price.loc[idx]
-        vol = group["volume"]
-        if tp.empty or vol.sum() == 0:
-            continue
-        price_min = tp.min()
-        price_max = tp.max()
+    def _compute_poc_vah_val(tp_window: pd.Series, vol_window: pd.Series):
+        """Compute POC/VAH/VAL from a window of typical prices + volumes."""
+        if tp_window.empty or vol_window.sum() == 0:
+            return np.nan, np.nan, np.nan
+        price_min = float(tp_window.min())
+        price_max = float(tp_window.max())
         if price_max == price_min:
-            poc.loc[idx] = price_min
-            vah.loc[idx] = price_min
-            val.loc[idx] = price_min
-            continue
+            return price_min, price_min, price_min
         bin_size = (price_max - price_min) / 100.0
         bins = np.arange(price_min, price_max + bin_size, bin_size)
-        bin_idx = np.digitize(tp.values, bins) - 1
+        bin_idx = np.digitize(tp_window.values, bins) - 1
         bin_idx = np.clip(bin_idx, 0, len(bins) - 2)
-        vol_by_bin = pd.Series(vol.values, index=bin_idx).groupby(level=0).sum()
+        vol_by_bin = pd.Series(vol_window.values, index=bin_idx).groupby(level=0).sum()
 
-        total_vol = vol_by_bin.sum()
+        total_vol = float(vol_by_bin.sum())
         target_vol = total_vol * value_area_pct
 
         # POC = bin with max volume.
@@ -250,14 +246,25 @@ def session_volume_profile(
         vah_price = max(va_prices)
         val_price = min(va_prices)
 
-        poc.loc[idx] = poc_price
-        vah.loc[idx] = vah_price
-        val.loc[idx] = val_price
+        return float(poc_price), float(vah_price), float(val_price)
+
+    # Expanding per-session: bar t sees only bars <= t within its session.
+    for date, group in df.groupby("date"):
+        idx = group.index
+        tp = typical_price.loc[idx]
+        vol = group["volume"]
+        for j in range(len(idx)):
+            tp_window = tp.iloc[: j + 1]
+            vol_window = vol.iloc[: j + 1]
+            p, vhi, vlo = _compute_poc_vah_val(tp_window, vol_window)
+            poc.loc[idx[j]] = p
+            vah.loc[idx[j]] = vhi
+            val.loc[idx[j]] = vlo
 
     return {
-        "poc": pd.Series(poc, index=df.index).ffill(),
-        "vah": pd.Series(vah, index=df.index).ffill(),
-        "val": pd.Series(val, index=df.index).ffill(),
+        "poc": pd.Series(poc, index=df.index),
+        "vah": pd.Series(vah, index=df.index),
+        "val": pd.Series(val, index=df.index),
     }
 
 

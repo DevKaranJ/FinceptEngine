@@ -450,6 +450,100 @@ def test_session_volume_profile_shape():
     assert (out["val"].loc[valid.index] <= out["poc"].loc[valid.index]).all()
 
 
+def test_session_volume_profile_no_intra_session_lookahead():
+    """ZLA-001 regression: bar i's POC/VAH/VAL must be invariant to future-in-day bars.
+
+    Builds two single-day frames identical up to index `cut`, then diverges
+    (huge price spike + huge volume) only after `cut`. The expanding profile at
+    indices <= cut must be byte-identical between full and truncated frames.
+    """
+    n = 60
+    idx = pd.date_range("2026-01-05 00:00", periods=n, freq="1min", tz="UTC")
+    rng = np.random.default_rng(11)
+    close = pd.Series(100.0 + np.cumsum(rng.normal(0, 0.1, size=n)), index=idx)
+    high = close + 0.5
+    low = close - 0.5
+    volume = pd.Series(rng.integers(100, 1000, size=n).astype(float), index=idx)
+
+    cut = 30
+    df_full = pd.DataFrame({"high": high, "low": low, "close": close, "volume": volume})
+    df_trunc = df_full.iloc[: cut + 1].copy()
+
+    out_full = session_volume_profile(df_full["high"], df_full["low"], df_full["close"], df_full["volume"])
+    out_trunc = session_volume_profile(df_trunc["high"], df_trunc["low"], df_trunc["close"], df_trunc["volume"])
+
+    # Bars up to `cut` must be identical despite divergent future-in-day bars.
+    pd.testing.assert_series_equal(out_full["poc"].iloc[: cut + 1], out_trunc["poc"], check_names=False)
+    pd.testing.assert_series_equal(out_full["vah"].iloc[: cut + 1], out_trunc["vah"], check_names=False)
+    pd.testing.assert_series_equal(out_full["val"].iloc[: cut + 1], out_trunc["val"], check_names=False)
+
+
+def test_opening_range_no_same_session_lookahead():
+    """ZLA opening range: bar i inside/after window must be invariant to later window bars."""
+    # Same-session: bars at 09:15, 09:20, 09:25 (window open=09:15, minutes=10 => 09:15-09:24)
+    idx = pd.date_range("2026-01-05 09:15", periods=4, freq="5min", tz="UTC")  # 09:15, 09:20, 09:25, 09:30
+    high = pd.Series([100.0, 101.0, 105.0, 102.0], index=idx)
+    low = pd.Series([99.0, 98.0, 99.0, 100.0], index=idx)
+
+    out = opening_range(high, low, open_time="09:15", minutes=10)
+
+    # Bar 09:15 (index 0): window so far = just itself -> ORH=100, ORL=99.
+    assert out["orh"].iloc[0] == 100.0
+    assert out["orl"].iloc[0] == 99.0
+    # Bar 09:20 (index 1): window bars 09:15,09:20 -> ORH=101, ORL=98.
+    assert out["orh"].iloc[1] == 101.0
+    assert out["orl"].iloc[1] == 98.0
+    # Bar 09:25 (index 2): outside window (>= 09:25) -> holds final window levels 101/98.
+    assert out["orh"].iloc[2] == 101.0
+    assert out["orl"].iloc[2] == 98.0
+    # Bar 09:30 (index 3): outside window -> still final window levels.
+    assert out["orh"].iloc[3] == 101.0
+    assert out["orl"].iloc[3] == 98.0
+
+    # Now alter a LATER window-relevant bar does not exist; instead confirm
+    # invariance by comparing against a frame truncated at index 1.
+    out_trunc = opening_range(high.iloc[:2], low.iloc[:2], open_time="09:15", minutes=10)
+    pd.testing.assert_series_equal(out["orh"].iloc[:2], out_trunc["orh"], check_names=False)
+    pd.testing.assert_series_equal(out["orl"].iloc[:2], out_trunc["orl"], check_names=False)
+
+
+def test_opening_range_no_pre_market_positional_leak():
+    """ZLA opening range: pre-market bars must not corrupt positional slicing.
+
+    Reproduces the Antigravity leak scenario: dataset starts at 00:00 UTC
+    (24/7 crypto data), opening window 09:15–09:45 (minutes=30). A price spike
+    at 09:20 must NOT leak into the 09:15 bar's ORH. The first window bar
+    (09:15) has 111 pre-market bars before it, so whole-day positional slicing
+    (window_high.iloc[:j+1]) would see the entire window including the 09:20
+    spike. Timestamp-based slicing (window_high.loc[:ts]) prevents this.
+    """
+    # 00:00 to 10:00 UTC at 5min freq = 121 bars; 09:15 is index 111.
+    idx = pd.date_range("2026-01-05 00:00", "2026-01-05 10:00", freq="5min", tz="UTC")
+    high = pd.Series(100.0, index=idx)
+    low = pd.Series(90.0, index=idx)
+    # Future spike inside the opening window at 09:20 (index 112).
+    high.loc["2026-01-05 09:20"] = 200.0
+
+    out = opening_range(high, low, open_time="09:15", minutes=30)
+
+    ts_0915 = pd.Timestamp("2026-01-05 09:15", tz="UTC")
+    ts_0920 = pd.Timestamp("2026-01-05 09:20", tz="UTC")
+    ts_1000 = pd.Timestamp("2026-01-05 10:00", tz="UTC")
+
+    # Bar 09:15 (first window bar): must see only itself -> ORH=100.0 (actual high), NOT 200.0.
+    assert out["orh"].loc[ts_0915] == 100.0, (
+        f"LOOK-AHEAD LEAK: 09:15 ORH={out['orh'].loc[ts_0915]} saw future 09:20 spike"
+    )
+    assert out["orl"].loc[ts_0915] == 90.0
+    # Bar 09:20 (spike bar): ORH reflects spike -> 200.0.
+    assert out["orh"].loc[ts_0920] == 200.0
+    # Bar 10:00 (after window): holds final window levels -> ORH=200.0.
+    assert out["orh"].loc[ts_1000] == 200.0
+    # Pre-market bar (08:00, before window): no OR levels yet -> NaN.
+    ts_0800 = pd.Timestamp("2026-01-05 08:00", tz="UTC")
+    assert pd.isna(out["orh"].loc[ts_0800])
+
+
 def test_cvd_cumulative():
     close = pd.Series([100, 101, 100.5, 102, 101.5], dtype=float)
     volume = pd.Series([100, 100, 100, 100, 100], dtype=float)

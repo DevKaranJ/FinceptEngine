@@ -1,7 +1,8 @@
 """config.py — Market sessions, fee/slippage schedules, risk constants.
 
 Single source of truth for all engine-wide constants. No look-ahead data lives here.
-All timestamps are UTC unless explicitly marked IST.
+All timestamps are UTC.
+Scope: Binance Spot & USDⓈ-M Futures only (top 10 crypto by rolling 24h quote volume).
 """
 
 from __future__ import annotations
@@ -16,23 +17,24 @@ UTC = timezone.utc
 IST = ZoneInfo("Asia/Kolkata")
 
 # ---------------------------------------------------------------------------
-# Market sessions (PRD FR-01 / master_architecture Section 2)
+# Market sessions (Binance Spot + USDⓈ-M Futures, 24/7)
 # ---------------------------------------------------------------------------
 # Crypto: 24/7 continuous, daily session resets at 00:00 UTC
 CRYPTO_SESSION_UTC_START = time(0, 0, 0, tzinfo=UTC)
 CRYPTO_SESSION_UTC_END = time(23, 59, 59, tzinfo=UTC)
 CRYPTO_TRADEABLE_PAIRS = ("BTCUSDT", "ETHUSDT", "SOLUSDT")
 
-# NSE Equities (Phase 2): 09:15–15:30 IST, Monday–Friday
-NSE_SESSION_IST_START = time(9, 15, 0)  # naive IST
-NSE_SESSION_IST_END = time(15, 30, 0)   # naive IST
+# ⚠️ DEPRECATED — NSE Equities session (out of scope for Binance-only transformation)
+# Retained ONLY so `trading_engine/data/clock.py` and Phase 1 tests keep importing cleanly.
+# These constants are NOT part of the active Binance scope and must not be used by new code.
+# Source preserved; see archive/documentation/DOCUMENTATION_CLEANUP_REPORT.md for removal reason.
+NSE_SESSION_IST_START = time(9, 15, 0)  # naive IST (deprecated)
+NSE_SESSION_IST_END = time(15, 30, 0)   # naive IST (deprecated)
 NSE_SESSION_IST_WINDOW = (
     timedelta(hours=9, minutes=15),
     timedelta(hours=15, minutes=30),
 )
-NSE_TRADING_DAYS = (0, 1, 2, 3, 4)  # Mon–Fri
-
-# Binance public WebSocket & REST endpoints
+NSE_TRADING_DAYS = (0, 1, 2, 3, 4)  # Mon–Fri (deprecated)
 BINANCE_WS_BASE_URL = "wss://stream.binance.com:9443/ws"
 BINANCE_REST_BASE_URL = "https://api.binance.com/api/v3"
 BINANCE_KLINE_INTERVALS = ("1m", "5m", "15m", "1h", "1d")

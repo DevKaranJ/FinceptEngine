@@ -1,12 +1,14 @@
 """backend/server.py — FastAPI REST + WebSocket hub (Phase 6).
 
+Binance Spot + USDⓈ-M Futures only (top 10 crypto by rolling 24h quote volume).
+
 REST endpoints:
   GET  /api/system/status          Engine status + recent activity timeline.
   GET  /api/market/snapshot        Historical OHLCV + indicator overlays.
   GET  /api/trades/memory          Paginated trade logs (MAE/MFE/regime).
   POST /api/trades/manual          Log human-executed trade (manual order ticket).
   GET  /api/evaluation/{strategy_id} Performance / Risk / Regime / Weaknesses.
-  POST /api/research/trigger       Trigger 4-role AI research loop (V2 gating).
+  POST /api/research/trigger       REMOVED — rule-based-only scope (returns ok: false).
   GET  /api/validation/reports     V1 vs V2 scorecard + heatmap JSON.
 
 WebSocket:
@@ -36,7 +38,6 @@ from fastapi.staticfiles import StaticFiles
 from trading_engine.config import (
     DB_PATH,
     DEFAULT_SLIPPAGE_BP,
-    CRYPTO_TRADEABLE_PAIRS,
     BINANCE_SPOT_TAKER_BP,
 )
 from trading_engine.data.clock import iso_now_utc, MarketSession
@@ -298,7 +299,9 @@ async def market_snapshot(
     Only data up to the most recent stored bar is returned (t <= T). No future
     data is ever included.
     """
-    market_type = "CRYPTO_SPOT" if symbol in CRYPTO_TRADEABLE_PAIRS else "NSE_EQUITY"
+    # Binance Spot + USDⓈ-M Futures only: market_type is always CRYPTO_SPOT
+    # (perpetuals use CRYPTO_PERP once the live feed populates that table slice).
+    market_type = "CRYPTO_SPOT"
 
     q, params = _ohlcv_query(symbol, timeframe, limit, market_type)
     rows: list[dict[str, Any]] = []
@@ -580,77 +583,25 @@ async def evaluation(strategy_id: str) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# REST: research trigger                                                      #
+# REST: research trigger (REMOVED — rule-based-only scope)                    #
 # --------------------------------------------------------------------------- #
 @app.post("/api/research/trigger")
 async def research_trigger(payload: dict[str, Any]) -> dict[str, Any]:
-    """Trigger the 4-Agent AI Research Loop for a target strategy.
+    """POST /api/research/trigger — REMOVED (rule-based-only scope).
 
-    Body: { "symbol": "BTCUSDT", "timeframe": "1m" }  (both optional)
-    Runs ResearchAgent -> HypothesisAgent -> CodingAgent -> ReviewAgent ->
-    ValidationGatekeeper. V1 stays active unless all 4 gate tests pass.
+    The 4-Agent AI Research Loop (`agents/research_loop.py`) was archived at
+    `archive/research_loop_archive/` because autonomous AI strategy generation
+    (ML/DL/RL/LLM multi-agent systems) conflicts with the rule-based-only
+    restriction. V1 strategies are human-defined, human-reviewed, and
+    human-approved only. This endpoint is intentionally disabled.
     """
-    symbol = str(payload.get("symbol", "BTCUSDT"))
-    timeframe = str(payload.get("timeframe", "1m"))
-
-    from trading_engine.agents.research_loop import ResearchLoop
-
-    # Gather V1 closed trades + feature history for the loop.
-    trades: list[dict[str, Any]] = []
-    df_features = None
-    try:
-        conn = get_connection(db_path=DB_PATH)
-        try:
-            rows = conn.execute(
-                """
-                SELECT * FROM trades_memory
-                WHERE strategy_id = 'EMA_BREAKOUT_V1' AND status = 'CLOSED'
-                ORDER BY entry_time_utc ASC
-                """,
-            ).fetchall()
-            trades = [_row_to_dict(r) for r in rows]
-        finally:
-            conn.close()
-    except Exception:
-        pass
-
-    try:
-        fs = FeatureStore(db_path=DB_PATH)
-        df_features = fs.load_features(symbol, timeframe)
-    except Exception:
-        df_features = None
-
-    loop = ResearchLoop()
-    result = loop.run(
-        trades=trades,
-        df_features=df_features,
-        symbol=symbol,
-        timeframe=timeframe,
-    )
-
-    live.add_activity(
-        "RESEARCH_AGENT", "RESEARCH_TRIGGERED",
-        f"Research loop for {symbol} {timeframe}: {result.get('final_status')}",
-        {
-            "symbol": symbol, "timeframe": timeframe,
-            "promoted": result.get("promoted"),
-            "final_status": result.get("final_status"),
-            "candidate": result.get("candidate_strategy_id"),
-        },
-    )
-
     return {
-        "ok": True,
-        "symbol": symbol,
-        "timeframe": timeframe,
-        "promoted": result.get("promoted", False),
-        "final_status": result.get("final_status"),
-        "candidate_strategy_id": result.get("candidate_strategy_id"),
-        "baseline_strategy_id": result.get("baseline_strategy_id"),
-        "v1_stays_active": result.get("v1_stays_active", True),
-        "rejection_reason": result.get("rejection_reason"),
-        "gate_summary": result.get("gate_summary"),
-        "look_ahead_audit": result.get("look_ahead_audit"),
+        "ok": False,
+        "removed": True,
+        "reason": "4-Agent AI Research Loop excluded per rule-based-only restriction",
+        "detail": "agents/research_loop.py archived at archive/research_loop_archive/; "
+                  "V1 strategies are human-defined, human-reviewed, and human-approved only.",
+        "archived_at": "archive/research_loop_archive/research_loop.py",
     }
 
 

@@ -77,8 +77,13 @@ def opening_range(
     """Opening Range High / Low (ORH / ORL).
 
     For the first ``minutes`` of each session (starting at ``open_time``),
-    compute the session's high and low, then forward-fill those levels for the
-    rest of the session. Only bars within the opening window contribute.
+    compute the session's high and low, then hold those levels for the rest of
+    the session. Only bars within the opening window contribute.
+
+    Zero-look-ahead: bar ``t`` sees only bars ``<= t`` within its session's
+    opening window. Bars inside the window see an expanding high/low over the
+    window so far; bars after the window see the final window max/min
+    (computed entirely from past window bars). Bars before the window see NaN.
 
     Returns ``{"orh": ..., "orl": ...}``.
     """
@@ -96,15 +101,48 @@ def opening_range(
         m = ts.hour * 60 + ts.minute
         return start_minutes <= m < end_minutes
 
-    mask = tz_naive.map(in_opening_window)
-    or_high = df.loc[mask].groupby("date")["high"].transform("max")
-    or_low = df.loc[mask].groupby("date")["low"].transform("min")
+    mask = pd.Series(tz_naive.map(in_opening_window), index=df.index)
 
-    # Forward fill the OR levels across the whole session day.
-    orh = or_high.groupby(df["date"]).ffill()
-    orl = or_low.groupby(df["date"]).ffill()
+    n = len(df)
+    orh = pd.Series(np.full(n, np.nan, dtype=float), index=df.index)
+    orl = pd.Series(np.full(n, np.nan, dtype=float), index=df.index)
 
-    return {"orh": orh.reindex(df.index), "orl": orl.reindex(df.index)}
+    for date, group in df.groupby("date"):
+        idx = group.index
+        g_mask = mask.loc[idx]
+        window_high = group.loc[g_mask, "high"]
+        window_low = group.loc[g_mask, "low"]
+
+        # Final OR levels computed only from bars within the opening window
+        # (all are past relative to bars after the window closes).
+        if not window_high.empty:
+            final_orh = float(window_high.max())
+            final_orl = float(window_low.min())
+        else:
+            final_orh = np.nan
+            final_orl = np.nan
+
+        for j, ts in enumerate(idx):
+            ts_minutes = ts.hour * 60 + ts.minute
+            if not g_mask.iloc[j]:
+                # Before the window opens: no OR levels yet -> NaN.
+                # After the window closes: hold the final OR levels computed
+                # entirely from past opening-window bars.
+                if ts_minutes >= end_minutes:
+                    if np.isfinite(final_orh):
+                        orh.loc[ts] = final_orh
+                        orl.loc[ts] = final_orl
+                continue
+
+            # Inside the opening window: expanding high/low over window bars <= t.
+            # Slice by timestamp (window bars up to and including ts), never by
+            # whole-day index j, so early window bars never see future window bars.
+            win_h = window_high.loc[:ts]
+            win_l = window_low.loc[:ts]
+            orh.loc[ts] = float(win_h.max())
+            orl.loc[ts] = float(win_l.min())
+
+    return {"orh": orh, "orl": orl}
 
 
 def dynamic_trendline(

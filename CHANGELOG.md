@@ -5,6 +5,155 @@
 
 ---
  
+## [v0.1.9] — 2026-11-24 — Phase A Codebase Audit (Audit Branch)
+
+**Agent Roles Involved:** Architect  
+**Phase:** Phase A — Codebase audit (branch: `audit/planning-finceptengine-transformation`, from `dev`, NOT committed, NOT pushed, NOT merged to `dev`)  
+**Branch:** `audit/planning-finceptengine-transformation` (from `dev`)
+
+### Added Files
+| File | Purpose |
+|------|---------|
+| `PROJECT_AUDIT.md` | Phase A audit findings — codebase inventory, architecture assessment, deviations from Binance-only scope, constraints compliance status, untracked artifacts |
+| `KNOWN_ISSUES.md` | 10 known issues (KI-001 to KI-010): NSE/IST out-of-scope refs, agent-loop vs rule-based restriction, ~300+ candidate files, untracked non-source artifacts, hardcoded 3-pair list, missing root manifests, missing 13 GitHub repo URLs (blocker), Phase 6 not merged, lowercase readme, claude-mem unavailable |
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `DEVELOPMENT_PLAN_AND_TODO.md` | Added Phase A/B IN PROGRESS items; added `[+] NEWLY ADDED / DISCOVERED ITEMS` entries for audit, cleanup backlog, and untracked artifacts |
+
+### Why the Change Was Made
+Completed Phase A codebase audit. Identified that the codebase targets both Crypto (Binance) and NSE Equities (IST) — NSE references are out of scope for the intended Binance Spot + USDⓈ-M Futures transformation. Flagged `agents/research_loop.py` conflict with rule-based-only restriction. Identified blocker: 13 GitHub repository URLs not found anywhere in codebase/local filesystem; client must supply them before Phase C source-level research.
+
+### Test & Verification Status
+- No code changes — audit/documentation only; no pytest run required.
+- All 6 existing phase suites previously verified (22/22, 61/61, 24/24, 14/14, 11/11, 9/9).
+
+---
+
+## [v0.1.10] — 2026-11-24 — Phase B: Binance-Only Documentation Cleanup & Archive (Audit Branch)
+
+**Agent Roles Involved:** Architect  
+**Phase:** Phase B — Documentation cleanup & archive (branch: `audit/planning-finceptengine-transformation`, from `dev`, NOT committed, NOT pushed, NOT merged to `dev`)  
+**Branch:** `audit/planning-finceptengine-transformation` (from `dev`)
+
+### Added Files
+| File | Purpose |
+|------|---------|
+| `archive/documentation/DOCUMENTATION_CLEANUP_REPORT.md` | Phase B documentation classifications (keep/update/archive) and research-loop exclusion rationale |
+| `archive/documentation/prd_and_roadmap.md` | Archived full text of superseded PRD (historical record) |
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `docs/prd_and_roadmap.md` | Deprecation header added; marked SUPERSEDED → ARCHIVED (NSE/FR-01, 6-phase crypto+NSE roadmap, 4-Agent AI Self-Improvement Loop conflict with Binance-only scope) |
+| `docs/master_architecture.md` | Title & subtitle → Binance Spot + USDⓈ-M Futures; removed Layer 5 AI Research Agents layer → Human Review & Validation Gate; removed `agents/` + `nse_broker_ws.py` from folder structure; roadmap Phase 5 → Human Strategy Review & Validation Gate (no AI self-improvement); renumbered layers |
+| `docs/database_and_data_contracts.md` | Project name → Binance platform; `market_type` column → `'CRYPTO_SPOT', 'CRYPTO_PERP'` (removed `NSE_EQUITY`); `POST /api/research/trigger` endpoint removed (agent loop excluded); weakness report now passed to Human Strategy Reviewer (not AI Research Agent) |
+| `trading_engine/config.py` | NSE session constants marked DEPRECATED (retained for clock.py/test imports); removed `timedelta`/`ZoneInfo` IST imports still needed; Binance scope documented |
+| `trading_engine/data/clock.py` | Docstring updated; NSE methods marked DEPRECATED (retained so Phase 1 tests keep passing) |
+| `trading_engine/backend/server.py` | `market_snapshot` fallback `NSE_EQUITY` → `CRYPTO_SPOT`; `POST /api/research/trigger` replaced with removed-stub returning `ok: false` + exclusion reason |
+
+### Removed Files (archived — not deleted)
+| File | Destination | Reason |
+|------|-------------|--------|
+| `trading_engine/agents/research_loop.py` | `archive/research_loop_archive/research_loop.py` | 4-Agent AI self-improvement loop conflicts with rule-based-only restriction (no ML/DL/RL/LLM multi-agent systems) |
+| `trading_engine/tests/test_phase5_research_agents.py` | `archive/research_artifacts/test_phase5_research_agents.py` | Imports removed `research_loop`; no longer part of active V1 workflow |
+| `trading_engine/strategies/candidates/*.py` (566 files) | `archive/research_artifacts/` | AI-generated V2 candidates; not imported by active code or tests; archived per rule-based-only scope |
+| 8 `.whl` files | `archive/untracked_artifacts/` | Untracked non-source build artifacts |
+| `graphify-out/` | `archive/untracked_artifacts/graphify-out` | Untracked knowledge-graph output (~12 MB) |
+| `UII/` (4 PNG screenshots) | `archive/untracked_artifacts/UII` | Untracked screenshot artifacts |
+
+### Why the Change Was Made
+Phase B documentation cleanup for Binance Spot + USDⓈ-M Futures-only transformation:
+- NSE/IST references out of scope; `prd_and_roadmap.md` classified CONFLICTING and archived.
+- `master_architecture.md` updated to Binance-only; Layer 5 AI Research Agents removed (rule-based-only), replaced with Human Review & Validation Gate.
+- `database_and_data_contracts.md` scoped to Binance Spot + USDⓈ-M Futures; `/api/research/trigger` removed (agent loop excluded).
+- `research_loop.py` runtime import removed from `server.py`; documented exclusion.
+- Candidate files (566), `test_phase5_research_agents.py`, `.whl`, `graphify-out/`, `UII/` archived (not deleted) per "do not delete source code" rule with removal reasons recorded.
+- Nothing committed, pushed, merged, or permanently deleted (Rule 6).
+
+### Test & Verification Status
+- No runtime code changed except `server.py` (research trigger stub) and `server.py` line 301 market_type; `config.py`/`clock.py` NSE constants retained as DEPRECATED so Phase 1 tests keep importing.
+- `pytest` NOT re-run this turn per Rule 4 hard-stop (awaiting client approval before next phase).
+- All 6 existing phase suites previously verified (22/22, 61/61, 24/24, 14/14, 11/11, 9/9).
+
+---
+
+## [v0.1.11] — 2026-11-24 — Phase C: Planning & Research (Audit Branch)
+
+**Agent Roles Involved:** Architect + QA + Reviewer  
+**Phase:** Phase C — Planning & research for Binance Spot + USDⓈ-M Futures transformation (branch: `audit/planning-finceptengine-transformation`, from `dev`, NOT committed, NOT pushed, NOT merged to `dev`)  
+**Branch:** `audit/planning-finceptengine-transformation` (from `dev`)
+
+### Added Files
+| File | Purpose |
+|------|---------|
+| `docs/ARCHITECTURE_DECISIONS.md` | ADR-001 through ADR-008 for Binance-only transformation (Binance-only scope, rule-based only, human review gate, market_type CRYPTO_SPOT/CRYPTO_PERP, deprecated NSE retained, archive-before-remove, max-5 deferred to implementation, research trigger stubbed) |
+| `docs/REPOSITORY_RESEARCH.md` | Phase C research findings vs 14 research areas (local codebase research complete; 13 GitHub repo URLs blocker KI-010 still open) |
+| `docs/REBUILD_RECOMMENDATION.md` | Rebuild vs in-place evolution recommendation (in-place chosen) + manifest choice (`pyproject.toml` + `requirements.txt` both) |
+| `docs/ZERO_LOOK_AHEAD_REVALIDATION.md` | Zero-look-ahead revalidation evidence — PASS with 1 Medium finding (ZLA-001 `session_volume_profile()` intra-day look-ahead) |
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `PROJECT_AUDIT.md` | Phase B marked COMPLETED; Phase C status added (in-place evolution recommended; 3 implementation gaps: top-10 eligibility, max-5 cap, Futures connector; root pyproject.toml) |
+| `KNOWN_ISSUES.md` | KI-001 through KI-006 marked RESOLVED (Phase B); KI-007/KI-008/KI-009/KI-010 remain open; status line updated |
+| `DEVELOPMENT_PLAN_AND_TODO.md` | C.1–C.4 marked DONE; C.5 in progress; C.6 (this CHANGELOG entry) todo; C.7 peer review todo |
+
+### Why the Change Was Made
+Phase C planning & research completed for Binance Spot + USDⓈ-M Futures transformation:
+- ADRs documented all 8 architectural decisions (ADR-001 through ADR-008).
+- Repository research confirmed 12 of 14 areas have complete local implementations; areas 2 (Futures connector), 3 (top-10 eligibility), 4 (max-5 cap) require implementation — none depend on the blocked 13 GitHub repo URLs.
+- Rebuild vs in-place: in-place evolution recommended (verified codebase through Phase 6, all test suites pass); root `pyproject.toml` + existing `trading_engine/requirements.txt` chosen.
+- Zero-look-ahead revalidated PASS with 1 Medium finding (ZLA-001) documented with remediation.
+- 13 GitHub repo URLs verified absent from codebase (zero matches for github.com/github.io/git.com); blocker KI-010 remains open awaiting client supply.
+
+### Test & Verification Status
+- No code changes — planning/research/documentation only; no pytest run required.
+- All 6 existing phase suites previously verified (22/22, 61/61, 24/24, 14/14, 11/11, 9/9).
+
+---
+
+## [v0.1.12] — 2026-11-24 — Antigravity Final Verification Corrections C1–C5 (Audit Branch)
+
+**Agent Roles Involved:** Backend, QA, Reviewer  
+**Phase:** Antigravity Final Verification Corrections (branch: `audit/planning-finceptengine-transformation`, from `dev`, NOT committed, NOT pushed, NOT merged to `dev`)  
+**Branch:** `audit/planning-finceptengine-transformation` (from `dev`)
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `trading_engine/indicators/structure.py` | C1 — `opening_range()` look-ahead bias fixed: whole-day positional slicing `window_high.iloc[:j+1]` replaced with timestamp-based `window_high.loc[:ts]` so early window bars never see future window bars. `j` retained for `g_mask.iloc[j]` boundary checks. |
+| `trading_engine/tests/test_phase2_indicators_signals.py` | C1 — Added regression test `test_opening_range_no_pre_market_positional_leak`: dataset starts at 00:00 UTC (pre-market bars present), opening window 09:15–09:45, price spike at 09:20 inside window; 09:15 bar must return ORH=100.0 (actual), NOT 200.0 (future leak). |
+| `pyproject.toml` | C2 — Package discovery fixed: `where=["trading_engine"]` → `where=["."]`; dependencies converted from invalid PEP 621 key=value under `[project.dependencies]` to a proper `dependencies` array in `[project]`. |
+| `docs/REPOSITORY_RESEARCH.md` | C3 — License table corrected: `binance-strategy` = No License / All Rights Reserved (NOT MIT); `crypto-trading-strategies` = No License / All Rights Reserved + ZERO source code files (README link list only); remaining 11 licenses verified and recorded (MIT/Apache 2.0). Clean-room reference warnings added. No external source code copied into FinceptEngine. |
+| `.venv` | C4 — setuptools 84.2.1 + wheel 0.48.0 installed in project virtual environment; editable install `pip install -e . --no-deps` verified OK; package discovery finds 18 `trading_engine*` packages. |
+| `trading_engine/data/clock.py` | C5 — Formal `DeprecationWarning` (runtime) added to 3 NSE methods: `is_nse_session_open()`, `nse_next_session_open_utc()`, `nse_square_off_utc()`. Methods remain functional so Phase 1 tests keep passing; new code must not use them. |
+| `trading_engine/config.py` | C5 — NSE constants (`NSE_SESSION_IST_START`, `NSE_SESSION_IST_END`, `NSE_SESSION_IST_WINDOW`, `NSE_TRADING_DAYS`) kept but explicitly marked `# naive IST (deprecated)` with binar-scope deprecation comments retained. |
+
+### Why the Change Was Made
+Antigravity Final Verification report (Verdict B — Conditionally Ready) identified five corrections required before Phase C implementation work may proceed. All five applied:
+- C1: Critical look-ahead leak in `opening_range()` (bar at 09:15 incorrectly saw 09:20 future spike of 200.0 instead of actual 100.0). Fixed via timestamp-based past-only slicing.
+- C2: Package discovery defect (`where=["trading_engine"]` found no packages) plus invalid PEP 621 dependencies format.
+- C3: Inaccurate licensing metadata in repository research doc (two repos without licenses wrongly labeled MIT; one with zero source code misclassified).
+- C4: Missing setuptools/wheel in `.venv` preventing editable installs.
+- C5: NSE equity/IST constants lacking formal deprecation markers conflicting with Binance-only direction.
+
+### Test & Verification Status
+- **`pytest`**: **133 passed** (`/home/karan/projects/FinceptEngine/.venv/bin/python -m pytest trading_engine/tests`, 2026-11-24).
+  - Phase 1: 22/22 passed (NSE deprecation warnings do not break tests).
+  - Phase 2: 64/64 passed (includes new `test_opening_range_no_pre_market_positional_leak` regression test).
+  - Phase 3: 24/24 passed.
+  - Phase 4: 14/14 passed.
+  - Phase 6: 9/9 passed.
+- Regression test result: `test_opening_range_no_pre_market_positional_leak` PASS — 09:15 bar ORH=100.0 excludes 09:20 future spike.
+- Editable installation: `pip install -e . --no-deps` — OK.
+- Package discovery: `find_packages(where=".", include=["trading_engine*"])` — 18 packages found.
+- Remaining issues: None from the five corrections.
+- Git status: 16 modified + deleted tracked files + untracked docs/manifests present (see `git status`). Nothing committed, pushed, or merged (Rule 6). Client approval required before committing.
+
+---
+
 ## [v0.1.8] — 2026-11-11 — Phase 6: FastAPI Backend & Unified Dark-Mode Terminal UI
 
 **Agent Roles Involved:** Backend, Frontend, QA  

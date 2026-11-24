@@ -23,7 +23,7 @@ TABLE_SCHEMA: dict[str, str] = {
     "ohlcv_bars": """
         CREATE TABLE IF NOT EXISTS ohlcv_bars (
             symbol          TEXT NOT NULL,
-            market_type     TEXT NOT NULL, -- 'CRYPTO_SPOT', 'CRYPTO_PERP', 'NSE_EQUITY'
+            market_type     TEXT NOT NULL, -- 'CRYPTO_SPOT', 'CRYPTO_PERP' (Binance only)
             timeframe       TEXT NOT NULL, -- '1m', '5m', '15m', '1h', '1d'
             open_time_utc   TEXT NOT NULL, -- ISO-8601 UTC timestamp
             open            REAL NOT NULL,
