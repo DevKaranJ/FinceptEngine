@@ -594,5 +594,77 @@ def test_spot_only_query_filters_market_type(clean_db_path):
         conn.close()
 
 
+# --------------------------------------------------------------------------- #
+# Phase E.0 — Backend endpoint default-market_type isolation (F1/F2 fixes)    #
+# --------------------------------------------------------------------------- #
+
+def _route_query_param_default(app, path: str, param_name: str):
+    """Return the default value of a query param on a registered route, else None."""
+    for route in app.routes:
+        if getattr(route, "path", None) != path:
+            continue
+        dependant = getattr(route, "dependant", None)
+        if dependant is None:
+            continue
+        for p in getattr(dependant, "query_params", []):
+            if p.name == param_name:
+                # FastAPI stores the default as a Param object; .default holds the value.
+                return getattr(p, "default", None)
+    return None
+
+
+def test_trades_memory_endpoint_defaults_to_spot(clean_db_path):
+    from trading_engine.backend import server as _server  # noqa: WPS433
+
+    initialize_database(db_path=clean_db_path)
+    app = _server.app
+    default = _route_query_param_default(app, "/api/trades/memory", "market_type")
+    assert default == CRYPTO_SPOT, f"expected CRYPTO_SPOT default, got {default!r}"
+
+
+def test_validation_reports_endpoint_defaults_to_spot(clean_db_path):
+    from trading_engine.backend import server as _server  # noqa: WPS433
+
+    initialize_database(db_path=clean_db_path)
+    app = _server.app
+    default = _route_query_param_default(app, "/api/validation/reports", "market_type")
+    assert default == CRYPTO_SPOT, f"expected CRYPTO_SPOT default, got {default!r}"
+
+
+# --------------------------------------------------------------------------- #
+# Phase E.0 — Migration atomicity & idempotency (F3 fix)                     #
+# --------------------------------------------------------------------------- #
+
+def test_migration_idempotent_reapply_no_data_change(premigration_db_path):
+    """Re-applying an already-applied migration is a no-op and preserves data."""
+    first = run_migration(db_path=premigration_db_path)
+    assert first["applied"] is True, first
+
+    conn = sqlite3.connect(premigration_db_path)
+    try:
+        ohlcv_after_first = _row_count(conn, "ohlcv_bars")
+        trades_after_first = _row_count(conn, "trades_memory")
+        val_after_first = _row_count(conn, "validation_reports")
+    finally:
+        conn.close()
+
+    second = run_migration(db_path=premigration_db_path)
+    assert second["applied"] is False, second  # already applied → no-op
+
+    conn = sqlite3.connect(premigration_db_path)
+    try:
+        assert _row_count(conn, "ohlcv_bars") == ohlcv_after_first
+        assert _row_count(conn, "trades_memory") == trades_after_first
+        assert _row_count(conn, "validation_reports") == val_after_first
+        # Migration version recorded exactly once.
+        versions = conn.execute(
+            "SELECT COUNT(*) FROM schema_migrations WHERE version=?",
+            (SCHEMA_MIGRATION_VERSION,),
+        ).fetchone()[0]
+        assert versions == 1, versions
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

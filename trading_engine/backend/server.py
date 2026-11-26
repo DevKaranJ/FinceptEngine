@@ -36,6 +36,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from trading_engine.config import (
+    CRYPTO_SPOT,
     DB_PATH,
     DEFAULT_SLIPPAGE_BP,
     BINANCE_SPOT_TAKER_BP,
@@ -384,17 +385,20 @@ async def trades_memory(
     execution_mode: str | None = Query(None),
     status: str | None = Query(None),
     symbol: str | None = Query(None),
-    market_type: str | None = Query(None),
+    market_type: str | None = Query(CRYPTO_SPOT),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ) -> dict[str, Any]:
     """Paginated trade logs from trades_memory with MAE/MFE, fees, regime.
 
-    Phase E.0: optional ``market_type`` filter; defaults to CRYPTO_SPOT so
-    Spot and Futures records are isolated by default.
+    Phase E.0: ``market_type`` defaults to CRYPTO_SPOT so Spot and Futures
+    records are isolated by default. Pass ``market_type=CRYPTO_PERP`` to read
+    Futures records.
     """
     conditions: list[str] = []
     params: list[Any] = []
+    if market_type:
+        conditions.append("market_type = ?"); params.append(market_type)
     if strategy_id:
         conditions.append("strategy_id = ?"); params.append(strategy_id)
     if execution_mode:
@@ -617,12 +621,13 @@ async def research_trigger(payload: dict[str, Any]) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 @app.get("/api/validation/reports")
 async def validation_reports(
-    market_type: str | None = Query(None),
+    market_type: str | None = Query(CRYPTO_SPOT),
 ) -> dict[str, Any]:
     """V1 vs V2 scorecard: OOS, Walk-Forward, Parameter Heatmap, Cost Stress.
 
-    Phase E.0: optional ``market_type`` filter; defaults to CRYPTO_SPOT so
-    Spot and Futures validation reports remain isolated by default.
+    Phase E.0: ``market_type`` defaults to CRYPTO_SPOT so Spot and Futures
+    validation reports remain isolated by default. Pass
+    ``market_type=CRYPTO_PERP`` to read Futures reports.
     """
     conditions: list[str] = []
     params: list[Any] = []

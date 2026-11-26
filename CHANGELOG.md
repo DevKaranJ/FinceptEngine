@@ -5,6 +5,30 @@
 
 ---
 
+## [v0.1.14] — 2026-11-26 — Phase E.0 Peer Review & Rule 5 Sign-Off (Audit Branch)
+
+**Agent Roles Involved:** QA, Reviewer, Backend  
+**Phase:** Phase E milestone E.0 — Rule 5 peer review and sign-off (branch: `phase-e/market-contracts-isolation`, HEAD `983f980`, committed & pushed to origin, NOT merged to `dev` or `main`)  
+**Branch:** `phase-e/market-contracts-isolation` (from `dev`)
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `trading_engine/backend/server.py` | `/api/trades/memory` and `/api/validation/reports` `market_type` query param default changed from `None` to `CRYPTO_SPOT` so Spot reads are isolated-by-default (fixes F1/F2 — cross-market read leakage). |
+| `trading_engine/memory/db.py` | `run_migration()` wrapped migration steps in explicit `BEGIN IMMEDIATE` transaction with rollback on failure and commit only on success (fixes F3 — migration atomicity). |
+| `trading_engine/tests/test_phase_e_isolation_contracts.py` | Added 3 regression tests: endpoint default-to-spot for both endpoints + migration idempotency/no-data-change on reapply. |
+| `PEER_REVIEW_LOG.md` | Phase E.0 peer review entry added (Issues Found → Fixes Applied → Final Sign-Off). |
+| `CHANGELOG.md` | This entry. |
+
+### Why the Change Was Made
+Rule 5 peer review identified F1/F2 (HIGH: API endpoints returned all rows across markets when `market_type` omitted) and F3 (MEDIUM: migration lacked an explicit transaction boundary, risking partial schema changes on failure). Fixes applied within E.0 scope only; no E.1–E.7 work.
+
+### Test & Verification Status
+- **`pytest`**: **156 passed** (133 baseline + 23 Phase E.0).
+- Peer review QA + Reviewer PASSED; sign-off recorded in `PEER_REVIEW_LOG.md`.
+
+---
+
 ## [v0.1.13] — 2026-11-25 — Phase E.0: Market Contracts & Schema Isolation (Audit Branch)
 
 **Agent Roles Involved:** Backend, QA, Architect  
@@ -36,15 +60,16 @@ Phase E.0 establishes market-type isolation at the schema/query layer before any
 - No Futures data collection, scanner, Futures WS, Futures risk engine, or strategy cap implemented in E.0 (deferred to E.1+ pending separate approval).
 
 ### Test & Verification Status
-- **`pytest`**: **153 passed** (`trading_engine/tests/`, 2026-11-25).
+- **`pytest`**: **156 passed** (`trading_engine/tests/`, 2026-11-26).
   - Phase 1: 22/22 passed (baseline preserved).
   - Phase 2: 64/64 passed (baseline preserved).
   - Phase 3: 24/24 passed (baseline preserved).
   - Phase 4: 14/14 passed (baseline preserved).
   - Phase 6: 9/9 passed (baseline preserved).
-  - Phase E.0: 20/20 passed (new isolation contract tests).
-- Migration preservation: existing Spot records preserved (3267 ohlcv_bars, 25528 trades_memory, 167 validation_reports all backfilled `CRYPTO_SPOT`).
-- Peer review (QA + Reviewer) pending — Rule 5 requires sign-off before presenting to Client.
+  - Phase E.0: 23/23 passed (20 isolation contract tests + 3 QA regression tests for F1/F2/F3).
+- Migration preservation: existing Spot records preserved; all backfilled `CRYPTO_SPOT`; migration atomic (BEGIN IMMEDIATE + rollback), idempotent, version `1.0.0-e0` recorded in `schema_migrations`.
+- Peer review (QA + Reviewer) COMPLETE — Rule 5 sign-off recorded in `PEER_REVIEW_LOG.md`.
+- Rule 5 fixes applied: F1/F2 (API default `market_type` → `CRYPTO_SPOT` for isolation-by-default), F3 (migration atomicity via `BEGIN IMMEDIATE`).
 - Nothing committed, pushed, or merged (Rule 6). Client approval required before committing.
 
 ---

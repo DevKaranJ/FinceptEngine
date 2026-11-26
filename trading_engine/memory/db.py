@@ -246,7 +246,8 @@ def run_migration(db_path: str = DB_PATH) -> dict[str, Any]:
     try:
         cur = conn.cursor()
 
-        # 0. Ensure the migration ledger table exists.
+        # 0. Ensure the migration ledger table exists (idempotent, committed
+        #    outside the migration transaction so the ledger is always queryable).
         cur.execute(TABLE_SCHEMA["schema_migrations"])
         conn.commit()
 
@@ -259,156 +260,172 @@ def run_migration(db_path: str = DB_PATH) -> dict[str, Any]:
             )
             return result
 
-        # Capture before-row counts.
+        # Capture before-row counts before opening the migration transaction.
         for table in ("ohlcv_bars", "trades_memory", "validation_reports"):
             if _table_exists(conn, table):
                 result["row_counts_before"][table] = _row_count(conn, table)
 
-        # 2. Add `market_type` to trades_memory (default CRYPTO_SPOT for existing rows).
-        if _table_exists(conn, "trades_memory") and not _column_exists(
-            conn, "trades_memory", "market_type"
-        ):
-            cur.execute(
-                "ALTER TABLE trades_memory ADD COLUMN market_type "
-                "TEXT NOT NULL DEFAULT 'CRYPTO_SPOT'"
-            )
-            conn.commit()
-            result["steps"].append(
-                "Added market_type column to trades_memory (default CRYPTO_SPOT)."
-            )
-
-        # 3. Add `market_type` to validation_reports (default CRYPTO_SPOT).
-        if _table_exists(conn, "validation_reports") and not _column_exists(
-            conn, "validation_reports", "market_type"
-        ):
-            cur.execute(
-                "ALTER TABLE validation_reports ADD COLUMN market_type "
-                "TEXT NOT NULL DEFAULT 'CRYPTO_SPOT'"
-            )
-            conn.commit()
-            result["steps"].append(
-                "Added market_type column to validation_reports (default CRYPTO_SPOT)."
-            )
-
-        # 4. Rebuild ohlcv_bars with extended PK including market_type.
-        if _table_exists(conn, "ohlcv_bars"):
-            before_count = _row_count(conn, "ohlcv_bars")
-            old_pk = _pk_columns(conn, "ohlcv_bars")
-            needs_rebuild = old_pk != ["symbol", "market_type", "timeframe", "open_time_utc"]
-
-            if needs_rebuild:
+        # Begin an explicit immediate transaction so the entire
+        # create-copy-replace-validate migration is atomic: on any failure the
+        # whole batch rolls back and no partially replaced/corrupted table is
+        # left behind. SQLite does not support ALTER TABLE ... MODIFY PRIMARY KEY,
+        # so the ohlcv_bars rebuild must be all-or-nothing.
+        cur.execute("BEGIN IMMEDIATE")
+        migration_ok = False
+        try:
+            # 2. Add `market_type` to trades_memory (default CRYPTO_SPOT for existing rows).
+            if _table_exists(conn, "trades_memory") and not _column_exists(
+                conn, "trades_memory", "market_type"
+            ):
                 cur.execute(
-                    "CREATE TABLE ohlcv_bars_new ("
-                    "    symbol          TEXT NOT NULL,"
-                    "    market_type     TEXT NOT NULL,"
-                    "    timeframe       TEXT NOT NULL,"
-                    "    open_time_utc   TEXT NOT NULL,"
-                    "    open            REAL NOT NULL,"
-                    "    high            REAL NOT NULL,"
-                    "    low             REAL NOT NULL,"
-                    "    close           REAL NOT NULL,"
-                    "    volume          REAL NOT NULL,"
-                    "    quote_volume    REAL DEFAULT 0.0,"
-                    "    taker_buy_vol   REAL DEFAULT 0.0,"
-                    "    trade_count     INTEGER DEFAULT 0,"
-                    "    PRIMARY KEY (symbol, market_type, timeframe, open_time_utc)"
-                    ")"
+                    "ALTER TABLE trades_memory ADD COLUMN market_type "
+                    "TEXT NOT NULL DEFAULT 'CRYPTO_SPOT'"
                 )
-                # Copy existing rows, backfilling market_type='CRYPTO_SPOT'.
-                cur.execute(
-                    """
-                    INSERT INTO ohlcv_bars_new
-                        (symbol, market_type, timeframe, open_time_utc,
-                         open, high, low, close, volume, quote_volume,
-                         taker_buy_vol, trade_count)
-                    SELECT symbol, 'CRYPTO_SPOT', timeframe, open_time_utc,
-                           open, high, low, close, volume, quote_volume,
-                           taker_buy_vol, trade_count
-                    FROM ohlcv_bars
-                    """
-                )
-                cur.execute("DROP TABLE ohlcv_bars")
-                cur.execute(
-                    "ALTER TABLE ohlcv_bars_new RENAME TO ohlcv_bars"
-                )
-                conn.commit()
                 result["steps"].append(
-                    f"Rebuilt ohlcv_bars with PK (symbol, market_type, timeframe, "
-                    f"open_time_utc); copied {before_count} rows with "
-                    f"market_type='CRYPTO_SPOT'."
+                    "Added market_type column to trades_memory (default CRYPTO_SPOT)."
+                )
+
+            # 3. Add `market_type` to validation_reports (default CRYPTO_SPOT).
+            if _table_exists(conn, "validation_reports") and not _column_exists(
+                conn, "validation_reports", "market_type"
+            ):
+                cur.execute(
+                    "ALTER TABLE validation_reports ADD COLUMN market_type "
+                    "TEXT NOT NULL DEFAULT 'CRYPTO_SPOT'"
+                )
+                result["steps"].append(
+                    "Added market_type column to validation_reports (default CRYPTO_SPOT)."
+                )
+
+            # 4. Rebuild ohlcv_bars with extended PK including market_type.
+            if _table_exists(conn, "ohlcv_bars"):
+                before_count = _row_count(conn, "ohlcv_bars")
+                old_pk = _pk_columns(conn, "ohlcv_bars")
+                needs_rebuild = old_pk != ["symbol", "market_type", "timeframe", "open_time_utc"]
+
+                if needs_rebuild:
+                    cur.execute(
+                        "CREATE TABLE ohlcv_bars_new ("
+                        "    symbol          TEXT NOT NULL,"
+                        "    market_type     TEXT NOT NULL,"
+                        "    timeframe       TEXT NOT NULL,"
+                        "    open_time_utc   TEXT NOT NULL,"
+                        "    open            REAL NOT NULL,"
+                        "    high            REAL NOT NULL,"
+                        "    low             REAL NOT NULL,"
+                        "    close           REAL NOT NULL,"
+                        "    volume          REAL NOT NULL,"
+                        "    quote_volume    REAL DEFAULT 0.0,"
+                        "    taker_buy_vol   REAL DEFAULT 0.0,"
+                        "    trade_count     INTEGER DEFAULT 0,"
+                        "    PRIMARY KEY (symbol, market_type, timeframe, open_time_utc)"
+                        ")"
+                    )
+                    # Copy existing rows, backfilling market_type='CRYPTO_SPOT'.
+                    cur.execute(
+                        """
+                        INSERT INTO ohlcv_bars_new
+                            (symbol, market_type, timeframe, open_time_utc,
+                             open, high, low, close, volume, quote_volume,
+                             taker_buy_vol, trade_count)
+                        SELECT symbol, 'CRYPTO_SPOT', timeframe, open_time_utc,
+                               open, high, low, close, volume, quote_volume,
+                               taker_buy_vol, trade_count
+                        FROM ohlcv_bars
+                        """
+                    )
+                    cur.execute("DROP TABLE ohlcv_bars")
+                    cur.execute(
+                        "ALTER TABLE ohlcv_bars_new RENAME TO ohlcv_bars"
+                    )
+                    result["steps"].append(
+                        f"Rebuilt ohlcv_bars with PK (symbol, market_type, timeframe, "
+                        f"open_time_utc); copied {before_count} rows with "
+                        f"market_type='CRYPTO_SPOT'."
+                    )
+                else:
+                    result["steps"].append(
+                        "ohlcv_bars already has market_type-inclusive PK; skipping rebuild."
+                    )
+
+            # 5. Recreate all indexes idempotently.
+            for index_ddl in CREATE_INDEXES:
+                cur.execute(index_ddl)
+            result["steps"].append("Recreated all indexes (idempotent).")
+
+            # 6. Record migration version + row counts.
+            after_counts: dict[str, int] = {}
+            for table in ("ohlcv_bars", "trades_memory", "validation_reports"):
+                if _table_exists(conn, table):
+                    after_counts[table] = _row_count(conn, table)
+            result["row_counts_after"] = after_counts
+
+            _record_migration(
+                conn,
+                SCHEMA_MIGRATION_VERSION,
+                "Phase E.0: market_type isolation — extended PKs on ohlcv_bars/"
+                "indicator_features, added market_type to trades_memory/"
+                "validation_reports, recreated indexes.",
+                row_counts=after_counts,
+            )
+            result["applied"] = True
+            result["steps"].append(
+                f"Recorded migration {SCHEMA_MIGRATION_VERSION} in schema_migrations."
+            )
+            migration_ok = True
+        except Exception:
+            # Roll back the entire migration so no partial schema change remains.
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            result["steps"].append("Migration rolled back due to error.")
+            raise
+        finally:
+            if migration_ok:
+                conn.commit()
+                result["steps"].append("Migration transaction committed.")
+
+            # 7. Validate (reads only, outside the write transaction).
+            validation_errors: list[str] = []
+
+            # ohlcv_bars PK must include market_type.
+            if _table_exists(conn, "ohlcv_bars"):
+                new_pk = _pk_columns(conn, "ohlcv_bars")
+                expected_pk = ["symbol", "market_type", "timeframe", "open_time_utc"]
+                if new_pk != expected_pk:
+                    validation_errors.append(
+                        f"ohlcv_bars PK is {new_pk}, expected {expected_pk}"
+                    )
+                if not _column_exists(conn, "ohlcv_bars", "market_type"):
+                    validation_errors.append("ohlcv_bars missing market_type column")
+
+            # trades_memory must have market_type column.
+            if _table_exists(conn, "trades_memory"):
+                if not _column_exists(conn, "trades_memory", "market_type"):
+                    validation_errors.append("trades_memory missing market_type column")
+
+            # validation_reports must have market_type column.
+            if _table_exists(conn, "validation_reports"):
+                if not _column_exists(conn, "validation_reports", "market_type"):
+                    validation_errors.append("validation_reports missing market_type column")
+
+            # Row counts must match before/after (preservation).
+            for table in ("ohlcv_bars", "trades_memory", "validation_reports"):
+                before = result["row_counts_before"].get(table)
+                after = result["row_counts_after"].get(table)
+                if before is not None and after is not None and before != after:
+                    validation_errors.append(
+                        f"{table} row count changed: {before} -> {after}"
+                    )
+
+            if validation_errors:
+                result["validation_errors"] = validation_errors
+                result["steps"].append(
+                    "VALIDATION FAILED: " + "; ".join(validation_errors)
                 )
             else:
-                result["steps"].append(
-                    "ohlcv_bars already has market_type-inclusive PK; skipping rebuild."
-                )
-
-        # 5. Recreate all indexes idempotently.
-        for index_ddl in CREATE_INDEXES:
-            cur.execute(index_ddl)
-        conn.commit()
-        result["steps"].append("Recreated all indexes (idempotent).")
-
-        # 6. Record migration version + row counts.
-        after_counts: dict[str, int] = {}
-        for table in ("ohlcv_bars", "trades_memory", "validation_reports"):
-            if _table_exists(conn, table):
-                after_counts[table] = _row_count(conn, table)
-        result["row_counts_after"] = after_counts
-
-        _record_migration(
-            conn,
-            SCHEMA_MIGRATION_VERSION,
-            "Phase E.0: market_type isolation — extended PKs on ohlcv_bars/"
-            "indicator_features, added market_type to trades_memory/"
-            "validation_reports, recreated indexes.",
-            row_counts=after_counts,
-        )
-        conn.commit()
-        result["applied"] = True
-        result["steps"].append(
-            f"Recorded migration {SCHEMA_MIGRATION_VERSION} in schema_migrations."
-        )
-
-        # 7. Validate.
-        validation_errors: list[str] = []
-
-        # ohlcv_bars PK must include market_type.
-        if _table_exists(conn, "ohlcv_bars"):
-            new_pk = _pk_columns(conn, "ohlcv_bars")
-            expected_pk = ["symbol", "market_type", "timeframe", "open_time_utc"]
-            if new_pk != expected_pk:
-                validation_errors.append(
-                    f"ohlcv_bars PK is {new_pk}, expected {expected_pk}"
-                )
-            if not _column_exists(conn, "ohlcv_bars", "market_type"):
-                validation_errors.append("ohlcv_bars missing market_type column")
-
-        # trades_memory must have market_type column.
-        if _table_exists(conn, "trades_memory"):
-            if not _column_exists(conn, "trades_memory", "market_type"):
-                validation_errors.append("trades_memory missing market_type column")
-
-        # validation_reports must have market_type column.
-        if _table_exists(conn, "validation_reports"):
-            if not _column_exists(conn, "validation_reports", "market_type"):
-                validation_errors.append("validation_reports missing market_type column")
-
-        # Row counts must match before/after (preservation).
-        for table in ("ohlcv_bars", "trades_memory", "validation_reports"):
-            before = result["row_counts_before"].get(table)
-            after = after_counts.get(table)
-            if before is not None and after is not None and before != after:
-                validation_errors.append(
-                    f"{table} row count changed: {before} -> {after}"
-                )
-
-        if validation_errors:
-            result["validation_errors"] = validation_errors
-            result["steps"].append(
-                "VALIDATION FAILED: " + "; ".join(validation_errors)
-            )
-        else:
-            result["steps"].append("Migration validation PASSED.")
+                result["steps"].append("Migration validation PASSED.")
 
     finally:
         conn.close()

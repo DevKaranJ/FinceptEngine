@@ -157,7 +157,8 @@
 | E.0.6 | `validation/backtester.py` — `Backtester.__init__()` accepts `market_type`; passed to `TradeLogger.open_trade()` | Backend | E.0 | **VERIFIED** |
 | E.0.7 | `backend/server.py` — `/api/trades/memory` and `/api/validation/reports` accept optional `market_type` filter (default `CRYPTO_SPOT`) | Backend | E.0 | **VERIFIED** |
 | E.0.8 | `tests/test_phase_e_isolation_contracts.py` — 20 tests per blueprint acceptance criteria | QA | E.0 | **VERIFIED** — 20/20 passed |
-| E.0.9 | Full `pytest` run — 153 passed (133 baseline + 20 Phase E.0) | QA | E.0 | **VERIFIED** — baseline preserved |
+| E.0.9 | Full `pytest` run — 156 passed (133 baseline + 23 Phase E.0 incl. 3 QA regression tests for F1/F2/F3) | QA | E.0 | **VERIFIED** — baseline preserved |
+| E.0.10 | Rule 5 peer review (QA + Reviewer) complete; sign-off in `PEER_REVIEW_LOG.md`; findings F1/F2/F3 fixed | QA + Reviewer | E.0 | **VERIFIED** — sign-off recorded; E.1–E.7 blocked on separate client approval |
 
 ---
 
