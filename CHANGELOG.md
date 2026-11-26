@@ -4,7 +4,51 @@
 **Format:** Keep a Changelog — entries are timestamped and logged before each turn ends.
 
 ---
- 
+
+## [v0.1.13] — 2026-11-25 — Phase E.0: Market Contracts & Schema Isolation (Audit Branch)
+
+**Agent Roles Involved:** Backend, QA, Architect  
+**Phase:** Phase E milestone E.0 — Market Contracts and Schema Isolation for Binance Spot + USDⓈ-M Futures transformation (branch: `audit/planning-finceptengine-transformation`, from `dev`, NOT committed, NOT pushed, NOT merged to `dev`)  
+**Branch:** `audit/planning-finceptengine-transformation` (from `dev`)
+
+### Added Files
+| File | Purpose |
+|------|---------|
+| `trading_engine/tests/test_phase_e_isolation_contracts.py` | Phase E.0 verification suite — 20 tests covering PK isolation, cross-market-type isolation, feature-store keys, migration idempotency/preservation, versioned migration ledger |
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `trading_engine/memory/db.py` | `ohlcv_bars` PK extended to `(symbol, market_type, timeframe, open_time_utc)`; `market_type` column added to `trades_memory` and `validation_reports` (default `CRYPTO_SPOT`); `schema_migrations` ledger table added; versioned one-time `run_migration()` with create-copy-replace-validate pattern; `initialize_database()` calls `run_migration()`; `market_type` indexes added on `ohlcv_bars`, `trades_memory`, `validation_reports` |
+| `trading_engine/data/feature_store.py` | `indicator_features` PK extended to `(symbol, market_type, timeframe, open_time_utc)`; `market_type` indexes added; `write_features()`/`load_features()` include `market_type` in cache keys and queries (default `CRYPTO_SPOT`); Parquet methods pass `market_type` |
+| `trading_engine/config.py` | Added `CRYPTO_SPOT = "CRYPTO_SPOT"` and `CRYPTO_PERP = "CRYPTO_PERP"` market type constants |
+| `trading_engine/memory/trade_logger.py` | `open_trade()` accepts `market_type` param (default `CRYPTO_SPOT`), included in `trades_memory` INSERT |
+| `trading_engine/validation/gatekeeper.py` | `ValidationReport` includes `market_type` field; `evaluate()` accepts `market_type`; `to_db_row()` includes `market_type`; `_persist_report()` INSERT includes `market_type`; `_run_backtest()`/`_walk_forward()`/`_parameter_heatmap()` pass `market_type` through |
+| `trading_engine/validation/backtester.py` | `Backtester.__init__()` accepts `market_type` (default `CRYPTO_SPOT`), stored as `self.market_type`, passed to `TradeLogger.open_trade()` |
+| `trading_engine/backend/server.py` | `/api/trades/memory` and `/api/validation/reports` endpoints accept optional `market_type` query filter (default `CRYPTO_SPOT`); `market_type` column included in response payloads |
+| `CHANGELOG.md` | This entry |
+
+### Why the Change Was Made
+Phase E.0 establishes market-type isolation at the schema/query layer before any Futures market data is collected (per B9 authorization):
+- Existing Spot/Futures universes kept independent; `market_type` defaults to `CRYPTO_SPOT` for backward compatibility.
+- SQLite does not support `ALTER TABLE ... MODIFY PRIMARY KEY`, so `ohlcv_bars` is rebuilt via create-copy-replace-validate within a transaction, backfilling existing Spot rows with `CRYPTO_SPOT`.
+- Migration is versioned (`SCHEMA_MIGRATION_VERSION = "1.0.0-e0"`), one-time, and idempotent via `schema_migrations` ledger table.
+- No Futures data collection, scanner, Futures WS, Futures risk engine, or strategy cap implemented in E.0 (deferred to E.1+ pending separate approval).
+
+### Test & Verification Status
+- **`pytest`**: **153 passed** (`trading_engine/tests/`, 2026-11-25).
+  - Phase 1: 22/22 passed (baseline preserved).
+  - Phase 2: 64/64 passed (baseline preserved).
+  - Phase 3: 24/24 passed (baseline preserved).
+  - Phase 4: 14/14 passed (baseline preserved).
+  - Phase 6: 9/9 passed (baseline preserved).
+  - Phase E.0: 20/20 passed (new isolation contract tests).
+- Migration preservation: existing Spot records preserved (3267 ohlcv_bars, 25528 trades_memory, 167 validation_reports all backfilled `CRYPTO_SPOT`).
+- Peer review (QA + Reviewer) pending — Rule 5 requires sign-off before presenting to Client.
+- Nothing committed, pushed, or merged (Rule 6). Client approval required before committing.
+
+---
+
 ## [v0.1.9] — 2026-11-24 — Phase A Codebase Audit (Audit Branch)
 
 **Agent Roles Involved:** Architect  

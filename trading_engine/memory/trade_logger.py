@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from ..config import DB_PATH
+from ..config import CRYPTO_SPOT, DB_PATH
 from ..memory.db import get_connection, initialize_database, log_activity
 from ..data.clock import iso_utc, now_utc
 
@@ -55,6 +55,7 @@ class TradeLogger:
         position_size: float,
         regime_snapshot: dict[str, Any],
         active_signals: list[str],
+        market_type: str = CRYPTO_SPOT,
         trade_id: str | None = None,
         notes: str | None = None,
     ) -> str:
@@ -68,8 +69,8 @@ class TradeLogger:
                     (trade_id, strategy_id, execution_mode, symbol, timeframe,
                      direction, status, entry_time_utc, entry_price,
                      stop_loss, target_1_price, target_2_price, position_size,
-                     regime_snapshot_json, active_signals_json, notes)
-                VALUES (?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     regime_snapshot_json, active_signals_json, notes, market_type)
+                VALUES (?, ?, ?, ?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     trade_id, strategy_id, execution_mode, symbol, timeframe,
@@ -78,6 +79,7 @@ class TradeLogger:
                     json.dumps(regime_snapshot or {}),
                     json.dumps(list(active_signals or [])),
                     notes,
+                    market_type,
                 ),
             )
             conn.commit()

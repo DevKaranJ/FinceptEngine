@@ -29,7 +29,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from trading_engine.config import DB_PATH, DEFAULT_SLIPPAGE_BP
+from trading_engine.config import (
+    CRYPTO_SPOT,
+    DB_PATH,
+    DEFAULT_SLIPPAGE_BP,
+)
 from trading_engine.data.clock import iso_now_utc
 from trading_engine.evaluation.analyzer import (
     compute_performance,
@@ -89,6 +93,7 @@ class ValidationReport:
     final_status: str  # 'APPROVED' or 'REJECTED'
     rejection_reason: str | None
     evaluated_at_utc: str
+    market_type: str = CRYPTO_SPOT
 
     def to_db_row(self) -> tuple[Any, ...]:
         return (
@@ -97,6 +102,7 @@ class ValidationReport:
             self.baseline_strategy_id,
             self.symbol,
             self.timeframe,
+            self.market_type,
             json.dumps(self.in_sample_metrics),
             json.dumps(self.out_of_sample_metrics),
             json.dumps(self.walk_forward_summary),
@@ -140,12 +146,16 @@ class ValidationGatekeeper:
         *,
         symbol: str = "UNKNOWN",
         timeframe: str = "1m",
+        market_type: str = CRYPTO_SPOT,
     ) -> ValidationReport:
         """Run all 4 validation tests and return a ValidationReport.
 
         The data is split chronologically: first 70% In-Sample, final 30%
         Out-of-Sample. No future leakage: each backtest sees only bars up to
         its own end index.
+
+        Phase E.0: ``market_type`` is recorded on the validation report so
+        Spot and Futures validation records remain isolated.
         """
         n = len(df_features)
         if n < 60:
@@ -162,14 +172,17 @@ class ValidationGatekeeper:
         is_res_v2 = self._run_backtest(
             self.candidate, df_features, 0, split_idx,
             slippage_bp=self.slippage_bp,
+            market_type=market_type,
         )
         oos_res_v2 = self._run_backtest(
             self.candidate, df_features, oos_start, n,
             slippage_bp=self.slippage_bp,
+            market_type=market_type,
         )
         oos_res_v1 = self._run_backtest(
             self.baseline, df_features, oos_start, n,
             slippage_bp=self.slippage_bp,
+            market_type=market_type,
         )
 
         oos_perf = compute_performance(oos_res_v2.closed_trades)
@@ -189,7 +202,7 @@ class ValidationGatekeeper:
         # ------------------------------------------------------------------ #
         # Test 2: Rolling Walk-Forward (K=5 windows)                         #
         # ------------------------------------------------------------------ #
-        wfa_results = self._walk_forward(df_features, n, oos_start)
+        wfa_results = self._walk_forward(df_features, n, oos_start, market_type=market_type)
         profitable_windows = sum(
             1 for w in wfa_results if w["expectancy_r"] > 0
         )
@@ -198,7 +211,7 @@ class ValidationGatekeeper:
         # ------------------------------------------------------------------ #
         # Test 3: Parameter Sensitivity Heatmap (5x5 grid)                   #
         # ------------------------------------------------------------------ #
-        heatmap = self._parameter_heatmap(df_features, 0, split_idx)
+        heatmap = self._parameter_heatmap(df_features, 0, split_idx, market_type=market_type)
         param_stability_passed = heatmap["pass_ratio"] >= HEATMAP_PASS_RATIO
 
         # ------------------------------------------------------------------ #
@@ -208,6 +221,7 @@ class ValidationGatekeeper:
         stressed_res = self._run_backtest(
             self.candidate, df_features, oos_start, n,
             slippage_bp=stressed_slippage,
+            market_type=market_type,
         )
         stressed_perf = compute_performance(stressed_res.closed_trades)
         cost_stress_passed = (
@@ -243,6 +257,7 @@ class ValidationGatekeeper:
             baseline_strategy_id=self.baseline.strategy_id,
             symbol=symbol,
             timeframe=timeframe,
+            market_type=market_type,
             in_sample_metrics={
                 "candidate": compute_performance(is_res_v2.closed_trades),
                 "candidate_risk": compute_risk(is_res_v2.closed_trades, is_res_v2.equity_curve),
@@ -292,6 +307,7 @@ class ValidationGatekeeper:
         end_idx: int,
         *,
         slippage_bp: float,
+        market_type: str = CRYPTO_SPOT,
     ) -> BacktestResult:
         """Run a backtest over [start_idx, end_idx) with given slippage."""
         bt = Backtester(
@@ -300,6 +316,7 @@ class ValidationGatekeeper:
             slippage_bp=slippage_bp,
             db_path=self.db_path,
             execution_mode="BACKTEST",
+            market_type=market_type,
         )
         return bt.run(df_features, start_idx=start_idx, end_idx=end_idx)
 
@@ -308,6 +325,8 @@ class ValidationGatekeeper:
         df_features: Any,
         n: int,
         oos_start: int,
+        *,
+        market_type: str = CRYPTO_SPOT,
     ) -> list[dict[str, Any]]:
         """K=5 expanding walk-forward windows over the OOS region.
 
@@ -329,11 +348,13 @@ class ValidationGatekeeper:
             self._run_backtest(
                 self.candidate, df_features, 0, train_end,
                 slippage_bp=self.slippage_bp,
+                market_type=market_type,
             )
             # Evaluate on the unseen test window.
             test_res = self._run_backtest(
                 self.candidate, df_features, train_end, test_end,
                 slippage_bp=self.slippage_bp,
+                market_type=market_type,
             )
             perf = compute_performance(test_res.closed_trades)
             results.append({
@@ -353,6 +374,8 @@ class ValidationGatekeeper:
         df_features: Any,
         start_idx: int,
         end_idx: int,
+        *,
+        market_type: str = CRYPTO_SPOT,
     ) -> dict[str, Any]:
         """5x5 grid over the top 2 numerical params of the candidate.
 
@@ -392,6 +415,7 @@ class ValidationGatekeeper:
                 res = self._run_backtest(
                     variant, df_features, start_idx, end_idx,
                     slippage_bp=self.slippage_bp,
+                    market_type=market_type,
                 )
                 perf = compute_performance(res.closed_trades)
                 pf = perf["profit_factor"]
@@ -446,13 +470,14 @@ class ValidationGatekeeper:
                 """
                 INSERT INTO validation_reports
                     (report_id, candidate_strategy_id, baseline_strategy_id,
-                     symbol, timeframe, in_sample_metrics_json,
+                     symbol, timeframe, market_type,
+                     in_sample_metrics_json,
                      out_of_sample_metrics_json, walk_forward_summary_json,
                      parameter_heatmap_json, cost_stress_metrics_json,
                      oos_passed, walk_forward_passed, param_stability_passed,
                      cost_stress_passed, final_status, rejection_reason,
                      evaluated_at_utc)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 report.to_db_row(),
             )

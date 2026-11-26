@@ -145,6 +145,43 @@
 
 ---
 
+## [x] COMPLETED & VERIFIED (Phase E.0)
+
+| # | Task | Owner | Phase | Notes |
+|---|------|-------|-------|-------|
+| E.0.1 | `config.py` — Add `CRYPTO_SPOT`, `CRYPTO_PERP` market type constants | Backend | E.0 | **VERIFIED** — defaults Spot for backward compatibility |
+| E.0.2 | `memory/db.py` — Extend `ohlcv_bars` PK to include `market_type`; add `market_type` column + indexes to `trades_memory`/`validation_reports`; add `schema_migrations` table; versioned `run_migration()` | Backend | E.0 | **VERIFIED** — create-copy-replace-validate migration; row counts preserved |
+| E.0.3 | `data/feature_store.py` — Extend `indicator_features` PK to include `market_type`; `market_type` in cache keys/queries/Parquet | Backend | E.0 | **VERIFIED** — Spot/Futures features never aliased |
+| E.0.4 | `memory/trade_logger.py` — `open_trade()` accepts `market_type` (default `CRYPTO_SPOT`) | Backend | E.0 | **VERIFIED** |
+| E.0.5 | `validation/gatekeeper.py` — `ValidationReport` includes `market_type`; threaded through `evaluate()`/`_run_backtest()`/`_walk_forward()`/`_parameter_heatmap()` | Backend | E.0 | **VERIFIED** |
+| E.0.6 | `validation/backtester.py` — `Backtester.__init__()` accepts `market_type`; passed to `TradeLogger.open_trade()` | Backend | E.0 | **VERIFIED** |
+| E.0.7 | `backend/server.py` — `/api/trades/memory` and `/api/validation/reports` accept optional `market_type` filter (default `CRYPTO_SPOT`) | Backend | E.0 | **VERIFIED** |
+| E.0.8 | `tests/test_phase_e_isolation_contracts.py` — 20 tests per blueprint acceptance criteria | QA | E.0 | **VERIFIED** — 20/20 passed |
+| E.0.9 | Full `pytest` run — 153 passed (133 baseline + 20 Phase E.0) | QA | E.0 | **VERIFIED** — baseline preserved |
+
+---
+
+## [/] REMAINING BACKLOG (BY PHASE)
+
+### Phase E.1–E.7 (Blocked — separate client approval required per B9)
+
+| # | Task | Phase | Notes |
+|---|------|-------|-------|
+| E.1 | Config: Spot/Futures endpoints & futures fee/funding constants | E.1 | Not authorized — requires separate client approval |
+| E.2 | Dynamic top-10 eligible asset scanner with point-in-time snapshots | E.2 | Numeric liquidity thresholds + hysteresis pending client confirmation |
+| E.3–E.7 | Subsequent Phase E milestones | E.3+ | Not authorized — requires separate client approval |
+
+---
+
+## [+] NEWLY ADDED / DISCOVERED ITEMS
+
+| Date | Item | Reason | Owner |
+|------|------|--------|-------|
+| 2026-11-25 | Phase E.0 implemented: schema isolation + versioned migration + feature store keys + query-layer filtering + 20 tests | B9 authorizes E.0 only | Backend + QA + Architect |
+| 2026-11-25 | `CHANGELOG.md` entry [v0.1.13] added | Phase E.0 timestamped entry | Architect |
+| 2026-11-25 | `DEVELOPMENT_PLAN_AND_TODO.md` updated: Phase E.0 added to COMPLETED & VERIFIED; E.1–E.7 moved to REMAINING BACKLOG | Rule 2 & Rule 3 — sync docs/trackers with code | Architect |
+| 2026-11-25 | Nothing committed, pushed, or merged (Rule 6) | Client approval required before committing | All |
+
 ## [+] NEWLY ADDED / DISCOVERED ITEMS
 
 | Date | Item | Reason | Owner |

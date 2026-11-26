@@ -40,6 +40,12 @@ BINANCE_REST_BASE_URL = "https://api.binance.com/api/v3"
 BINANCE_KLINE_INTERVALS = ("1m", "5m", "15m", "1h", "1d")
 
 # ---------------------------------------------------------------------------
+# Market type constants (Phase E.0 — Spot/Futures isolation)
+# ---------------------------------------------------------------------------
+CRYPTO_SPOT = "CRYPTO_SPOT"      # Binance Spot market type
+CRYPTO_PERP = "CRYPTO_PERP"      # Binance USDⓈ-M Futures perpetual market type
+
+# ---------------------------------------------------------------------------
 # Fee & slippage schedules (execution realism)
 # ---------------------------------------------------------------------------
 # Binance Spot maker/taker (basis points) — updated from public fee schedule

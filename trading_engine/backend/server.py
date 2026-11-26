@@ -384,10 +384,15 @@ async def trades_memory(
     execution_mode: str | None = Query(None),
     status: str | None = Query(None),
     symbol: str | None = Query(None),
+    market_type: str | None = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ) -> dict[str, Any]:
-    """Paginated trade logs from trades_memory with MAE/MFE, fees, regime."""
+    """Paginated trade logs from trades_memory with MAE/MFE, fees, regime.
+
+    Phase E.0: optional ``market_type`` filter; defaults to CRYPTO_SPOT so
+    Spot and Futures records are isolated by default.
+    """
     conditions: list[str] = []
     params: list[Any] = []
     if strategy_id:
@@ -398,6 +403,8 @@ async def trades_memory(
         conditions.append("status = ?"); params.append(status)
     if symbol:
         conditions.append("symbol = ?"); params.append(symbol)
+    if market_type:
+        conditions.append("market_type = ?"); params.append(market_type)
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     q = f"""
@@ -406,7 +413,7 @@ async def trades_memory(
                stop_loss, target_1_price, target_2_price, position_size,
                slippage_cost, commission_cost, gross_pnl, net_pnl, r_multiple,
                mae_pct, mae_r, mfe_pct, mfe_r, exit_reason,
-               regime_snapshot_json, active_signals_json, notes
+               regime_snapshot_json, active_signals_json, notes, market_type
         FROM trades_memory {where}
         ORDER BY entry_time_utc DESC, trade_id DESC
         LIMIT ? OFFSET ?
@@ -609,25 +616,39 @@ async def research_trigger(payload: dict[str, Any]) -> dict[str, Any]:
 # REST: validation reports                                                    #
 # --------------------------------------------------------------------------- #
 @app.get("/api/validation/reports")
-async def validation_reports() -> dict[str, Any]:
-    """V1 vs V2 scorecard: OOS, Walk-Forward, Parameter Heatmap, Cost Stress."""
+async def validation_reports(
+    market_type: str | None = Query(None),
+) -> dict[str, Any]:
+    """V1 vs V2 scorecard: OOS, Walk-Forward, Parameter Heatmap, Cost Stress.
+
+    Phase E.0: optional ``market_type`` filter; defaults to CRYPTO_SPOT so
+    Spot and Futures validation reports remain isolated by default.
+    """
+    conditions: list[str] = []
+    params: list[Any] = []
+    if market_type:
+        conditions.append("market_type = ?"); params.append(market_type)
+
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     reports: list[dict[str, Any]] = []
     try:
         conn = get_connection(db_path=DB_PATH)
         try:
             rows = conn.execute(
-                """
+                f"""
                 SELECT report_id, candidate_strategy_id, baseline_strategy_id,
-                       symbol, timeframe, in_sample_metrics_json,
+                       symbol, timeframe, market_type,
+                       in_sample_metrics_json,
                        out_of_sample_metrics_json, walk_forward_summary_json,
                        parameter_heatmap_json, cost_stress_metrics_json,
                        oos_passed, walk_forward_passed, param_stability_passed,
                        cost_stress_passed, final_status, rejection_reason,
                        evaluated_at_utc
-                FROM validation_reports
+                FROM validation_reports {where}
                 ORDER BY evaluated_at_utc DESC
                 LIMIT 50
-                """
+                """,
+                params,
             ).fetchall()
             for r in rows:
                 reports.append({
@@ -636,6 +657,7 @@ async def validation_reports() -> dict[str, Any]:
                     "baseline_strategy_id": r["baseline_strategy_id"],
                     "symbol": r["symbol"],
                     "timeframe": r["timeframe"],
+                    "market_type": r["market_type"],
                     "in_sample_metrics": json.loads(r["in_sample_metrics_json"]),
                     "out_of_sample_metrics": json.loads(r["out_of_sample_metrics_json"]),
                     "walk_forward_summary": json.loads(r["walk_forward_summary_json"]),

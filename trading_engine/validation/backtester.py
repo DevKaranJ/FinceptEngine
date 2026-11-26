@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from trading_engine.config import (
+    CRYPTO_SPOT,
     DB_PATH,
     DEFAULT_SLIPPAGE_BP,
 )
@@ -98,6 +99,9 @@ class Backtester:
     and returns results instead of mutating a long-lived simulator. Each
     ``run()`` opens its own ``TradeLogger`` / ``RiskManager`` so runs are
     isolated and deterministic.
+
+    Phase E.0: ``market_type`` is recorded on every trade written to
+    ``trades_memory`` so Spot and Futures trades remain isolated.
     """
 
     def __init__(
@@ -108,12 +112,14 @@ class Backtester:
         slippage_bp: float = DEFAULT_SLIPPAGE_BP,
         db_path: str = DB_PATH,
         execution_mode: str = "BACKTEST",
+        market_type: str = CRYPTO_SPOT,
     ) -> None:
         self.strategy = strategy
         self.account_equity = account_equity
         self.slippage_bp = slippage_bp
         self.db_path = db_path
         self.execution_mode = execution_mode
+        self.market_type = market_type
 
         # Fresh risk + logger per run so repeated calls are deterministic.
         self.risk = RiskManager(account_equity=account_equity)
@@ -281,6 +287,7 @@ class Backtester:
             regime_snapshot=signal.get("regime_snapshot", {}),
             active_signals=signal.get("active_signals", []),
             notes=f"Backtest open via {signal['strategy_id']}",
+            market_type=self.market_type,
         )
 
         return FillResult(
